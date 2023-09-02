@@ -43,6 +43,7 @@ class Group;
 class Mob;
 class NPC; 
 class Object;
+class MoneyObject;
 class Petition;
 class Raid;
 class Spawn2;
@@ -68,6 +69,7 @@ public:
 	virtual bool IsPlayerCorpse()	const { return false; }
 	virtual bool IsNPCCorpse()		const { return false; }
 	virtual bool IsObject()			const { return false; }
+	virtual bool IsMoneyObject()	const { return false; }
 	virtual bool IsDoor()			const { return false; }
 	virtual bool IsTrap()			const { return false; }
 	virtual bool IsBeacon()			const { return false; }
@@ -83,6 +85,7 @@ public:
 	Mob		*CastToMob();
 	Corpse	*CastToCorpse();
 	Object	*CastToObject();
+	MoneyObject	*CastToMoneyObject();
 	Doors	*CastToDoors();
 	Trap	*CastToTrap();
 	Beacon	*CastToBeacon();
@@ -93,6 +96,7 @@ public:
 	const Mob		*CastToMob() const;
 	const Corpse	*CastToCorpse() const;
 	const Object	*CastToObject() const;
+	const MoneyObject	*CastToMoneyObject() const;
 	const Doors		*CastToDoors() const;
 	const Trap		*CastToTrap() const;
 	const Beacon	*CastToBeacon() const;
@@ -179,6 +183,14 @@ public:
 	bool IsMobSpawnBySpawnID(uint32 id);
 	Client* FindCorpseDragger(uint16 CorpseID);
 
+	inline MoneyObject *GetMoneyObjectByID(uint16 id)
+	{
+		auto it = money_object_list.find(id);
+		if (it != money_object_list.end())
+			return it->second;
+		return nullptr;
+	}
+
 	inline Object *GetObjectByID(uint16 id)
 	{
 		auto it = object_list.find(id);
@@ -210,6 +222,7 @@ public:
 	void	RaidProcess();
 	void	DoorProcess();
 	void	ObjectProcess();
+	void	MoneyObjectProcess();
 	void	CorpseProcess();
 	void	CorpseDepopProcess();
 	void	MobProcess();
@@ -228,6 +241,7 @@ public:
 	void	ListDoors(Client* c);
 	glm::vec3	GetDoorLoc(Client* c, int doorid);
 	Object *FindObject(uint32 object_id);
+	MoneyObject *FindMoneyObject(uint32 object_id);
 	Object*	FindNearbyObject(float x, float y, float z, float radius);
 	bool	SendZoneDoorsBulk(EQApplicationPacket* app, Client *client);
 	void	SendTraders(Client* client);
@@ -239,6 +253,7 @@ public:
 	void	AddNPC(NPC*, bool SendSpawnPacket = true, bool dontqueue = false);
 	void	AddCorpse(Corpse* pc, uint32 in_id = 0xFFFFFFFF);
 	void	AddObject(Object*, bool SendSpawnPacket = true);
+	void	AddMoneyObject(MoneyObject*, bool SendSpawnPacket = true);
 	void	AddGroup(Group*);
 	void	AddGroup(Group*, uint32 id);
 	void	AddRaid(Raid *raid);
@@ -260,6 +275,7 @@ public:
 	bool	RemoveDoor(uint16 delete_id);
 	bool	RemoveTrap(uint16 delete_id);
 	bool	RemoveObject(uint16 delete_id);
+	bool	RemoveMoneyObject(uint16 delete_id);
 	bool	RemoveProximity(uint16 delete_npc_id);
 	void	RemoveAllMobs();
 	void	RemoveAllClients();
@@ -484,6 +500,7 @@ private:
 	std::unordered_map<uint16, NPC *> npc_list;
 	std::unordered_map<uint16, Corpse *> corpse_list;
 	std::unordered_map<uint16, Object *> object_list;
+	std::unordered_map<uint16, MoneyObject *> money_object_list;
 	std::unordered_map<uint16, Doors *> door_list;
 	std::unordered_map<uint16, Trap *> trap_list;
 	std::unordered_map<uint16, Beacon *> beacon_list;
@@ -495,6 +512,7 @@ private:
 	std::queue<uint16> free_ids;
 
 	Timer object_timer;
+	Timer money_object_timer;
 	Timer door_timer;
 	Timer corpse_timer;
 	Timer corpse_depop_timer;

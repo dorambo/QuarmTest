@@ -24,6 +24,7 @@ class EQStream;
 class Group;
 class Mob;
 class NPC;
+class MoneyObject;
 class Object;
 class Raid;
 class Seperator;
@@ -718,6 +719,8 @@ public:
 	bool	AutoPutLootInInventory(EQ::ItemInstance& inst, bool try_worn = false, bool try_cursor = true, ServerLootItem_Struct** bag_item_data = 0);
 	bool	SummonItem(uint32 item_id, int8 quantity = -1, uint16 to_slot = EQ::invslot::slotCursor, bool force_charges = false);
 	void	DropItem(int16 slot_id);
+	void	DropMoneyOnGround();
+	void	CreateMoneyObjectFromCursor();
 	void	SendLootItemInPacket(const EQ::ItemInstance* inst, int16 slot_id);
 	void	SendItemPacket(int16 slot_id, const EQ::ItemInstance* inst, ItemPacketType packet_type, int16 fromid = 0, int16 toid = 0, int16 skill = 0);
 	bool	IsValidSlot(uint32 slot);

@@ -440,6 +440,7 @@ int main(int argc, char** argv) {
 				entity_list.GroupProcess();
 				entity_list.DoorProcess();
 				entity_list.ObjectProcess();
+				entity_list.MoneyObjectProcess();
 				entity_list.CorpseProcess();
 				entity_list.CorpseDepopProcess();
 				entity_list.TrapProcess();

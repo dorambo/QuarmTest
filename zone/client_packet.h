@@ -110,6 +110,7 @@
 	void Handle_OP_Medding(const EQApplicationPacket *app);
 	void Handle_OP_MemorizeSpell(const EQApplicationPacket *app);
 	void Handle_OP_Mend(const EQApplicationPacket *app);
+	void Handle_OP_MoneySpawn(const EQApplicationPacket *app);
 	void Handle_OP_MoveCoin(const EQApplicationPacket *app);
 	void Handle_OP_MoveItem(const EQApplicationPacket *app);
 	void Handle_OP_PetCommands(const EQApplicationPacket *app);

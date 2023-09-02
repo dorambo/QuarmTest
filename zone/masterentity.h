@@ -6,6 +6,7 @@
 #include "raids.h"
 #include "client.h"
 #include "object.h"
+#include "money_object.h"
 #include "corpse.h"
 #include "doors.h"
 #include "mob.h"

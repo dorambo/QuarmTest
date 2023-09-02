@@ -65,6 +65,7 @@ SET(zone_sources
 	mob.cpp
 	mob_ai.cpp
 	mob_movement_manager.cpp
+	money_object.cpp
 	npc.cpp
 	object.cpp
 	oriented_bounding_box.cpp
@@ -147,6 +148,7 @@ SET(zone_headers
 	masterentity.h
 	mob.h
 	mob_movement_manager.h
+	money_object.h
 	npc.h
 	object.h
 	oriented_bounding_box.h

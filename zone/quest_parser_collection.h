@@ -29,6 +29,7 @@
 #include "groups.h"
 #include "mob.h"
 #include "object.h"
+#include "money_object.h"
 #include "raids.h"
 #include "trap.h"
 

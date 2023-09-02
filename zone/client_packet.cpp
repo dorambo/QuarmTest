@@ -3462,6 +3462,12 @@ void Client::Handle_OP_CreateObject(const EQApplicationPacket *app)
 	return;
 }
 
+void Client::Handle_OP_MoneySpawn(const EQApplicationPacket *app)
+{
+	DropMoneyOnGround();
+	return;
+}
+
 void Client::Handle_OP_Damage(const EQApplicationPacket *app) 
 {
 	if (!ClientFinishedLoading())

@@ -83,6 +83,7 @@ void command_depop(Client *c, const Seperator *sep);
 void command_depopzone(Client *c, const Seperator *sep);
 void command_disablerecipe(Client *c, const Seperator *sep);
 void command_distance(Client *c, const Seperator *sep);
+void command_dropmoney(Client *c, const Seperator *sep);
 void command_doanim(Client *c, const Seperator *sep);
 void command_emote(Client *c, const Seperator *sep);
 void command_emotesearch(Client *c, const Seperator *sep);

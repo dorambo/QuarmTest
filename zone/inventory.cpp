@@ -350,6 +350,29 @@ void Client::DropItem(int16 slot_id)
 	safe_delete(inst);
 }
 
+// Drop item from inventory to ground (generally only dropped from SlotCursor)
+void Client::DropMoneyOnGround()
+{
+	CreateMoneyObjectFromCursor();
+}
+
+//This differs from EntityList::CreateGroundObject by using the inst, so bag contents are
+//preserved. EntityList creates a new instance using ID, so bag contents are lost. Also,
+//EntityList can be used by NPCs for things like disarm.
+void Client::CreateMoneyObjectFromCursor()
+{
+
+	if (m_pp.copper_cursor == 0 && m_pp.silver_cursor == 0 && m_pp.gold_cursor == 0 && m_pp.platinum_cursor == 0)
+	{
+		Message(CC_Red, "You don't have any money on your cursor. Cancelling.");
+		return;
+	}
+
+	// Package as zone object
+	MoneyObject *object = new MoneyObject(this, m_pp.copper_cursor, m_pp.silver_cursor, m_pp.gold_cursor, m_pp.platinum_cursor);
+	entity_list.AddMoneyObject(object, true);
+}
+
 //This differs from EntityList::CreateGroundObject by using the inst, so bag contents are
 //preserved. EntityList creates a new instance using ID, so bag contents are lost. Also,
 //EntityList can be used by NPCs for things like disarm.

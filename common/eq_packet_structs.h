@@ -1749,6 +1749,26 @@ struct Object_Struct {
 /*224*/
 };
 
+struct MoneyObject_Struct {
+	/*000*/	uint32	linked_list_addr[2];
+	/*008*/		uint32  platinum;
+	/*012*/		uint32  gold;
+	/*016*/		uint32  silver;
+	/*020*/		uint32  copper;
+	/*024*/		int32	drop_id;	//this id will be used, if someone clicks on this object
+	/*028*/		char	zone_name[16];
+	/*044*/		uint32	expires;
+	/*048*/		uint32	money_total;
+	/*052*/		uint32	actor_ptr; // garbage memory
+	/*056*/		float	z;
+	/*060*/		float	x;
+	/*064*/		float	y;					// Z Position
+	/*068*/		float   heading;
+	/*072*/		float   pitch;
+	/*076*/		float   roll;
+	/*080*/		char	object_name[32];				// ACTOR ID
+};
+
 //<Zaphod> 01 = generic drop, 02 = armor, 19 = weapon
 //[13:40] <Zaphod> and 0xff seems to be indicative of the tradeskill/openable items that end up returning the old style item type in the OP_OpenObject
 
@@ -1763,6 +1783,19 @@ struct ClickObject_Struct {
 /*00*/	uint32 drop_id;
 /*04*/	uint32 player_id;
 /*08*/
+};
+
+/*
+** Click Object Struct
+** Client clicking on money sprite object
+** Size: 8 bytes
+** Last Updated: Oct-17-2003
+**
+*/
+struct ClickMoney_Struct {
+	/*00*/	uint32 drop_id;
+	/*04*/	uint32 player_id;
+	/*08*/
 };
 
 struct Shielding_Struct {

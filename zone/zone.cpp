@@ -41,6 +41,7 @@
 #include "map.h"
 #include "npc.h"
 #include "object.h"
+#include "money_object.h"
 #include "pathfinder_null.h"
 #include "pathfinder_nav_mesh.h"
 #include "pathfinder_waypoint.h"

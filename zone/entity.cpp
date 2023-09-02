@@ -246,6 +246,7 @@ const Encounter* Entity::CastToEncounter() const
 EntityList::EntityList()
 	:
 	object_timer(5000),
+	money_object_timer(5000),
 	door_timer(5000),
 	corpse_timer(2000),
 	corpse_depop_timer(250),
@@ -414,6 +415,35 @@ void EntityList::DoorProcess()
 			it = door_list.erase(it);
 		}
 		++it;
+	}
+}
+
+void EntityList::MoneyObjectProcess()
+{
+	// MobProcess is the master and sets/disables the timers.
+	if (zone && RuleB(Zone, IdleWhenEmpty) && !zone->ZoneWillNotIdle())
+	{
+		if (numclients < 1 && zone->idle)
+		{
+			return;
+		}
+	}
+
+	if (money_object_list.empty()) {
+		money_object_timer.Disable();
+		return;
+	}
+
+	auto it = money_object_list.begin();
+	while (it != money_object_list.end()) {
+		if (!it->second->Process()) {
+			safe_delete(it->second);
+			free_ids.push(it->first);
+			it = money_object_list.erase(it);
+		}
+		else {
+			++it;
+		}
 	}
 }
 
@@ -793,6 +823,26 @@ void EntityList::AddObject(Object *obj, bool SendSpawnPacket)
 
 	if (!object_timer.Enabled())
 		object_timer.Start();
+}
+
+void EntityList::AddMoneyObject(MoneyObject *obj, bool SendSpawnPacket)
+{
+	obj->SetID(GetFreeID());
+
+	if (SendSpawnPacket) {
+		EQApplicationPacket app;
+		obj->CreateSpawnPacket(&app);
+#if (EQDEBUG >= 6)
+		DumpPacket(&app);
+#endif
+		QueueClients(0, &app, false);
+		safe_delete_array(app.pBuffer);
+	}
+
+	money_object_list.insert(std::pair<uint16, MoneyObject *>(obj->GetID(), obj));
+
+	if (!money_object_timer.Enabled())
+		money_object_timer.Start();
 }
 
 void EntityList::AddDoor(Doors *door)
@@ -2464,6 +2514,18 @@ bool EntityList::RemoveObject(uint16 delete_id)
 	return false;
 }
 
+bool EntityList::RemoveMoneyObject(uint16 delete_id)
+{
+	auto it = money_object_list.find(delete_id);
+	if (it != money_object_list.end()) {
+		safe_delete(it->second);
+		free_ids.push(it->first);
+		money_object_list.erase(it);
+		return true;
+	}
+	return false;
+}
+
 bool EntityList::RemoveTrap(uint16 delete_id)
 {
 	auto it = trap_list.find(delete_id);
@@ -2610,6 +2672,8 @@ void EntityList::RemoveEntity(uint16 id)
 	else if (entity_list.RemoveGroup(id))
 		return;
 	else if (entity_list.RemoveTrap(id))
+		return;
+	else if (entity_list.RemoveMoneyObject(id))
 		return;
 	else
 		entity_list.RemoveObject(id);
