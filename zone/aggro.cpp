@@ -698,12 +698,12 @@ void EntityList::AIYellForHelp(Mob* sender, Mob* attacker)
 		if(npc->CheckAggro(attacker) || npc->GetSpecialAbility(IMMUNE_AGGRO))
 			continue;
 
-		// prevent assists if kiter has pull limit and this NPC had been deaggroed sometime within 30 seconds ago (so almost certainly from his train)
-		if (zone->GetNumAggroedNPCs() >= zone->GetPullLimit() && npc->GetAggroDeaggroTime() < 30000
-			&& entity_list.GetTopHateCount(attacker) >= zone->GetPullLimit())
-		{
-			continue;
-		}
+		//// prevent assists if kiter has pull limit and this NPC had been deaggroed sometime within 30 seconds ago (so almost certainly from his train)
+		//if (npc->GetAggroDeaggroTime() < 30000
+		//	&& entity_list.GetTopHateCount(attacker) >= zone->GetPullLimit())
+		//{
+		//	continue;
+		//}
 
 		uint32 npc_faction = npc->GetNPCFactionID();
 		uint32 sender_faction = sender->CastToNPC()->GetNPCFactionID();
@@ -1055,8 +1055,23 @@ bool Mob::IsBeneficialAllowed(Mob *target)
 					return false;
 				}
 
+				if (c1->IsSoloOnly() || c2->IsSoloOnly())
+				{
+					// if either are solo only don't allow.
+					return false;
+				}
+
+				if (c1->IsSelfFound() == true || c2->IsSelfFound() == true)
+				{
+					bool can_get_experience = c1->IsInLevelRange(c2->GetLevel2());
+					bool compatible = c1->IsSelfFound() == c2->IsSelfFound();
+					if (!compatible || compatible && !can_get_experience)
+						return false;
+				}
+
 				if (c1->GetPVP() == c2->GetPVP())
 					return true;
+
 			}
 			else if(_NPC(mob2))				// client to npc
 			{

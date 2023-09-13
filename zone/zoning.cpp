@@ -477,6 +477,9 @@ void Client::ProcessMovePC(uint32 zoneID, float x, float y, float z, float headi
 			Log(Logs::General, Logs::Error, "Client::ProcessMovePC received a reguest to perform an unsupported client zone operation.");
 			break;
 	}
+
+	exemptHackCount = true;
+	ExpectedRewindPos = glm::vec3(x, y, z);
 }
 
 void Client::ZonePC(uint32 zoneID, float x, float y, float z, float heading, uint8 ignorerestrictions, ZoneMode zm) {
@@ -786,7 +789,12 @@ void Client::GoToBind(uint8 bindnum) {
 void Client::GoToDeath() {
 	//Client will request a zone in EQMac era clients, but let's make sure they get there:
 	zone_mode = ZoneToBindPoint;
+
 	MovePC(m_pp.binds[0].zoneId, 0.0f, 0.0f, 0.0f, 0.0f, 1, ZoneToBindPoint);
+	if (IsHardcore())
+	{
+		WorldKick();
+	}
 }
 
 void Client::SetZoneFlag(uint32 zone_id) {

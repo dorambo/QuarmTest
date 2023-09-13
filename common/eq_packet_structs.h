@@ -2332,6 +2332,8 @@ struct MerchantList {
 	uint32	classes_required;
 	uint8	probability;
 	uint8	quantity;
+	float	min_expansion;
+	float	max_expansion;
 	uint8	qty_left; // Not stored in the DB
 };
 
@@ -2584,6 +2586,7 @@ struct ServerLootItem_Struct {
 	uint8	quest;
 	uint8	pet;
 	bool	forced;
+	uint8	min_looter_level;
 };
 
 struct Checksum_Struct {

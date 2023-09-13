@@ -48,7 +48,7 @@ public:
 	bool RemoveEnt(Mob *ent);
 	void RemoveFeigned();
 	// Remove all
-	void Wipe();
+	void Wipe(bool from_memblur = false);
 	// ???
 	void DoFactionHits(int32 nfl_id, bool &success);
 	// Gets Hate amount for mob
@@ -106,6 +106,9 @@ public:
 	void SetOwner(Mob *newOwner);
 
 	void ReportDmgTotals(Mob* mob, bool corpse, bool xp, bool faction, int32 dmg_amt);
+
+	void HandleFTEEngage(Client* client);
+	void HandleFTEDisengage();
 
 protected:
 	tHateEntry* Find(Mob *ent);

@@ -237,6 +237,10 @@ Corpse::Corpse(NPC* in_npc, ItemList* in_itemlist, uint32 in_npctypeid, const NP
 		corpse_delay_timer.Start(GetDecayTime() + 1000);
 	}
 
+	for (int i = 0; i < MAX_LOOTERS; i++) {
+		initial_allowed_looters[i] = 0;
+	}
+
 	for (int i = 0; i < MAX_LOOTERS; i++){
 		allowed_looters[i] = 0;
 	}
@@ -323,6 +327,10 @@ Corpse::Corpse(Client* client, int32 in_rezexp, uint8 in_killedby) : Mob (
 
 	for (i = 0; i < MAX_LOOTERS; i++){
 		allowed_looters[i] = 0;
+	}
+
+	for (int i = 0; i < MAX_LOOTERS; i++) {
+		initial_allowed_looters[i] = 0;
 	}
 
 	is_corpse_changed		= true;
@@ -455,8 +463,9 @@ Corpse::Corpse(Client* client, int32 in_rezexp, uint8 in_killedby) : Mob (
 		IsRezzed(false);
 		Save();
 		database.TransactionCommit();
-
-		if(!IsEmpty()) {
+		if (client->IsHardcore())
+			corpse_decay_timer.Start(1000);
+		else if (!IsEmpty()) {
 			corpse_decay_timer.Start(RuleI(Character, CorpseDecayTimeMS));
 		}
 		else if (IsEmpty() && RuleB(Character, SacrificeCorpseDepop) && killedby == Killed_Sac &&
@@ -464,6 +473,7 @@ Corpse::Corpse(Client* client, int32 in_rezexp, uint8 in_killedby) : Mob (
 		{
 			corpse_decay_timer.Start(180000);
 		}
+
 		return;
 	} //end "not leaving naked corpses"
 
@@ -622,6 +632,7 @@ Corpse::Corpse(uint32 in_dbid, uint32 in_charid, const char* in_charname, ItemLi
 	for (int i = 0; i < MAX_LOOTERS; i++){
 		allowed_looters[i] = 0;
 	}
+
 	SetPlayerKillItemID(0);
 
 	UpdateEquipmentLight();
@@ -783,6 +794,7 @@ void Corpse::AddItem(uint32 itemnum, int8 charges, int16 slot) {
 	item->item_id = itemnum;
 	item->charges = charges;
 	item->equip_slot = slot;
+	item->min_looter_level = 0;
 	itemlist.push_back(item);
 
 	UpdateEquipmentLight();
@@ -1040,18 +1052,36 @@ void Corpse::SetDecayTimer(uint32 decaytime) {
 
 bool Corpse::CanPlayerLoot(int charid) {
 	uint8 looters = 0;
-	for (int i = 0; i < MAX_LOOTERS; i++) {
-		if (allowed_looters[i] != 0){
-			looters++;
-		}
 
-		if (allowed_looters[i] == charid){
-			return true;
+	Client* c = entity_list.GetClientByCharID(charid);
+	if (c && c->IsSelfFound() || c && c->IsSoloOnly())
+	{
+		for (int i = 0; i < MAX_LOOTERS; i++) {
+			if (initial_allowed_looters[i] != 0) {
+				looters++;
+			}
+
+			if (initial_allowed_looters[i] == charid) {
+				return true;
+			}
 		}
 	}
-	/* If we have no looters, obviously client can loot */
-	if (looters == 0){
-		return true;
+	else
+	{
+		for (int i = 0; i < MAX_LOOTERS; i++) {
+			if (allowed_looters[i] != 0) {
+				looters++;
+			}
+
+			if (allowed_looters[i] == charid) {
+				return true;
+			}
+		}
+
+		/* If we have no looters, obviously client can loot */
+		if (looters == 0) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -1063,6 +1093,8 @@ void Corpse::AllowPlayerLoot(Mob *them, uint8 slot) {
 		return;
 
 	allowed_looters[slot] = them->CastToClient()->CharacterID();
+
+	initial_allowed_looters[slot] = them->CastToClient()->CharacterID();
 }
 
 void Corpse::MakeLootRequestPackets(Client* client, const EQApplicationPacket* app) {
@@ -1337,7 +1369,43 @@ void Corpse::LootItem(Client* client, const EQApplicationPacket* app) {
 		}
 	}
 
-	if (client && inst) {
+	if (client && inst && item_data) {
+
+		if (item_data->pet || item_data->quest)
+		{
+			if (client->IsSoloOnly() || client->IsSelfFound())
+			{
+				client->Message(CC_Red, "This item is from a charmed pet, which is not allowed during a solo or self found run.");
+				SendEndLootErrorPacket(client);
+				ResetLooter();
+				delete inst;
+				return;
+			}
+		}
+
+		if (!IsPlayerCorpse() && item_data->min_looter_level != 0)
+		{
+			if (client->GetLevel() < item_data->min_looter_level)
+			{
+				client->Message(CC_Red, "You cannot loot this type of legacy item. Required character level: %i", item_data->min_looter_level);
+				SendEndLootErrorPacket(client);
+				ResetLooter();
+				delete inst;
+				return;
+			}
+
+			if (client->CheckLegacyItemLooted(item_data->item_id))
+			{
+				client->Message(CC_Red, "This is a legacy item. You've already looted a legacy item of this type already on this character.");
+				SendEndLootErrorPacket(client);
+				ResetLooter();
+				delete inst;
+				return;
+			}
+
+			client->AddLootedLegacyItem(item_data->item_id);
+		}
+
 		if (client->CheckLoreConflict(item)) {
 			client->Message_StringID(0, LOOT_LORE_ERROR);
 			SendEndLootErrorPacket(client);
@@ -1345,6 +1413,7 @@ void Corpse::LootItem(Client* client, const EQApplicationPacket* app) {
 			delete inst;
 			return;
 		}
+
 		// search through bags for lore items
 		if (item && item->IsClassBag()) {
 			for (int i = 0; i < 10; i++) {
@@ -1382,7 +1451,7 @@ void Corpse::LootItem(Client* client, const EQApplicationPacket* app) {
 
 
 		/* First add it to the looter - this will do the bag contents too */
-		if (lootitem->auto_loot) {
+		if (lootitem && lootitem->auto_loot) {
 			if (!client->AutoPutLootInInventory(*inst, true, true, bag_item_data))
 				client->PutLootInInventory(EQ::invslot::slotCursor, *inst, bag_item_data);
 		}
@@ -1726,6 +1795,7 @@ void Corpse::AddLooter(Mob* who) {
 	for (int i = 0; i < MAX_LOOTERS; i++) {
 		if (allowed_looters[i] == 0) {
 			allowed_looters[i] = who->CastToClient()->CharacterID();
+			initial_allowed_looters[i] = who->CastToClient()->CharacterID();
 			break;
 		}
 	}

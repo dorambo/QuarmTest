@@ -65,6 +65,7 @@ struct ItemData;
 #include <float.h>
 #include <set>
 #include <algorithm>
+#include <chrono>
 
 
 #define CLIENT_TIMEOUT		90000
@@ -173,6 +174,9 @@ public:
 	~Client();
 
 	bool is_client_moving;
+
+	DBGrid_Struct* gm_grid;
+	std::vector<wplist> gm_grid_waypoint_list;
 
 	//abstract virtual function implementations required by base abstract class
 	virtual bool Death(Mob* killerMob, int32 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, uint8 killedby = 0, bool bufftic = false);
@@ -332,6 +336,18 @@ public:
 	inline const float GetBindHeading(uint32 index = 0) const { return m_pp.binds[index].heading; }
 	inline uint32 GetBindZoneID(uint32 index = 0) const { return m_pp.binds[index].zoneId; }
 	inline uint32 GetZoneChangeCount() const { return m_pp.zone_change_count; }
+	
+	inline uint8 IsHardcore() const { return m_epp.hardcore; }
+	inline uint8 IsSoloOnly() const { return m_epp.solo_only; }
+	inline uint8 IsSelfFound() const { return m_epp.self_found; }
+	inline uint8 HasBetaBuffGearFlag() const { return m_epp.betabuff_gear_flag; }
+
+	inline void SetHardcore(uint8 in_hardcore) { m_epp.hardcore = in_hardcore; }
+	inline void SetSoloOnly(uint8 in_solo_only) { m_epp.solo_only = in_solo_only; }
+	inline void SetSelfFound(uint8 in_self_found) { m_epp.self_found = in_self_found; }
+	inline void SetHardcoreDeathTimeStamp(uint32 in_death_timestamp) { m_epp.hardcore_death_time = in_death_timestamp; Save(1); }
+	inline void SetBetaBuffGearFlag(uint8 gearflag) { m_epp.betabuff_gear_flag = gearflag; }
+
 	int32 CalcMaxMana();
 	int32 CalcBaseMana();
 	const int32& SetMana(int32 amount);
@@ -491,6 +507,13 @@ public:
 	//This gets the skill value of the item type equiped in the Primary Slot
 	uint16 GetPrimarySkillValue();
 
+	int HackCount;
+
+	bool exemptHackCount;
+	glm::vec3 ExpectedRewindPos;
+	std::chrono::high_resolution_clock::time_point last_position_update_time;
+
+
 	inline uint32 GetEXP() const { return m_pp.exp; }
 
 	void	AddEXP(uint32 in_add_exp, uint8 conlevel = 0xFF, Mob* killed_mob = nullptr, int16 avg_level = 0, bool is_split = false);
@@ -531,6 +554,7 @@ public:
 	void SetFactionLevel(uint32 char_id, uint32 npc_id, bool quest = false);
 	void SetFactionLevel2(uint32 char_id, int32 faction_id, int32 value, uint8 temp);
 	int32 GetRawItemAC();
+	uint8 GetRaceArmorSize();
 
 	inline uint32 LSAccountID() const { return lsaccountid; }
 	inline uint32 GetWID() const { return WID; }
@@ -555,6 +579,7 @@ public:
 	void	SendGuildList();
 	void	SendPlayerGuild();
 	void	RefreshGuildInfo();
+	std::string GetGuildName();
 
 
 	void	SendManaUpdatePacket();
@@ -569,13 +594,21 @@ public:
 	void	ReadBook(BookRequest_Struct *book);
 	void	QuestReadBook(const char* text, uint8 type);
 	void	SendClientMoneyUpdate(uint8 type,uint32 amount);
+	void	SendBankAndCursorToInventoryMoneyUpdate(uint8 type, uint32 amount);
 	void	SendClientMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinum);
 	bool	TakeMoneyFromPP(uint64 copper, bool updateclient=false);
 	void	AddMoneyToPP(uint64 copper,bool updateclient);
 	void	AddMoneyToPP(uint32 copper, uint32 silver, uint32 gold,uint32 platinum,bool updateclient);
 	bool	HasMoney(uint64 copper);
+	void	ClearMoney();
+	void	RemoveAllSkills();
 	uint64	GetCarriedMoney();
 	uint64	GetAllMoney();
+
+	void ResetStartingSkills();
+	void SetRaceStartingSkills();
+	void SetRacialLanguages();
+	void SetClassLanguages();
 
 	bool IsDiscovered(uint32 itemid);
 	void DiscoverItem(uint32 itemid);
@@ -707,6 +740,7 @@ public:
 	void	SetMaterial(int16 slot_id, uint32 item_id);
 	int32	GetItemIDAt(int16 slot_id);
 	bool	FindOnCursor(uint32 item_id);
+	void	ClearPlayerInfoAndGrantStartingItems();
 	bool	PutItemInInventory(int16 slot_id, const EQ::ItemInstance& inst, bool client_update = false);
 	bool	PushItemOnCursor(const EQ::ItemInstance& inst, bool client_update = false);
 	bool	PushItemOnCursorWithoutQueue(EQ::ItemInstance* inst, bool drop = false);
@@ -905,6 +939,7 @@ public:
 	bool has_zomm;
 	bool client_position_update;
 	bool ignore_zone_count; 
+	uint32 prev_last_login_time;
 	uint16 last_target;
 
 	inline virtual int32 GetLastLogin() const { return m_pp.lastlogin; }
@@ -986,6 +1021,9 @@ public:
 	bool ShowHelm() { return m_pp.showhelm; }
 	void SetShowHelm(bool value) { m_pp.showhelm = value; }
 	bool SpillBeer();
+	void AddLootedLegacyItem(uint16 item_id);
+	bool CheckLegacyItemLooted(uint16 item_id);
+	void LoadLootedLegacyItems();
 	void ResetSkill(EQ::skills::SkillType skillid, bool reset_timer = false);
 	void ResetAllSkills();
 
@@ -1109,6 +1147,8 @@ private:
 	uint16				duel_target;
 	bool				duelaccepted;
 	std::list<uint32>	keyring;
+	std::set<uint16>	looted_legacy_items;
+
 	bool				tellsoff;	// GM /toggle
 	bool				gmhideme;
 	bool				AFK;

@@ -609,7 +609,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_lev
 				entity_list.RemoveFromNPCTargets(this);
 				// charmed players can have hate lists.  So remove them also from their hatelist.
 				entity_list.RemoveFromClientHateLists(this);
-				WipeHateList();
+				WipeHateList(true);
 
 				EndShield();
 
@@ -1301,7 +1301,7 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, int buffslot, int caster_lev
 				{
 					if(IsAIControlled())
 					{
-						WipeHateList();
+						WipeHateList(true);
 					}
 					Message(CC_Red, "Your mind fogs. Who are my friends? Who are my enemies?... it was all so clear a moment ago...");
 				}
@@ -2826,7 +2826,7 @@ void Mob::DoBuffTic(uint16 spell_id, int slot, uint32 ticsremaining, uint8 caste
 				{
 					if(IsAIControlled())
 					{
-						WipeHateList();
+						WipeHateList(true);
 					}
 					Message(CC_Red, "Your mind fogs. Who are my friends? Who are my enemies?... it was all so clear a moment ago...");
 				}
@@ -3269,7 +3269,7 @@ void Mob::BuffFadeBySlot(int slot, bool iRecalcBonuses, bool message, bool updat
 					entity_list.RemoveDotsFromNPCs(this);
 					//entity_list.RemoveDebuffsFromNPCs(this);
 					entity_list.RemoveFromNPCTargets(this);
-					WipeHateList();
+					WipeHateList(true);
 					if (owner && owner->IsClient() && !GetSummonerID() && (!owner->GetOwnerID() || !owner->IsCharmed() || (owner->GetOwner() && owner->GetOwner()->IsClient())))
 					{
 						// PoP ench charms had a rare chance to attack non-enchanter targets on break (might be just CoD?)
@@ -4216,6 +4216,12 @@ int16 Client::GetFocusEffect(focusType type, uint16 spell_id, std::string& item_
 		(casting_spell_slot == EQ::spells::CastingSlot::Item || casting_aa > 0))
 		return 0;
 
+	if (RuleB(AlKabor, EnableEraItemRules))
+	{
+		//Disable Focus Effects before we enter Luclin.
+		if (RuleR(World, CurrentExpansion) < (float)ExpansionEras::LuclinEQEra)
+			return 0;
+	}
 	int16 realTotal = 0;
 	int16 realTotal2 = 0;
 	int16 realTotal3 = 0;

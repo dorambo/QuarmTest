@@ -248,8 +248,6 @@ NPC::NPC(const NPCType* d, Spawn2* in_respawn, const glm::vec4& position, int if
 
 	npc_aggro = d->npc_aggro;
 
-	AI_Start();
-
 	d_melee_texture1 = d->d_melee_texture1;
 	d_melee_texture2 = d->d_melee_texture2;
 	memset(equipment, 0, sizeof(equipment));
@@ -392,6 +390,10 @@ NPC::NPC(const NPCType* d, Spawn2* in_respawn, const glm::vec4& position, int if
 	raid_fte = 0;
 	group_fte = 0;
 	fte_charid = 0;
+
+	solo_raid_fte = 0;
+	solo_group_fte = 0;
+	solo_fte_charid = 0;
 	bonusAvoidance = d->avoidance;
 	exp_pct = d->exp_pct;
 	push_vector = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -403,6 +405,7 @@ NPC::NPC(const NPCType* d, Spawn2* in_respawn, const glm::vec4& position, int if
 	noQuestPause = false;
 	assisting = false;
 	pbaoe_damage = 0;
+	AI_Start();
 }
 
 NPC::~NPC()
@@ -1325,7 +1328,7 @@ void NPC::PickPocket(Client* thief)
 			if (item)
 			{
 				inst = database.CreateItem(item, citem->charges);
-				if (citem->equip_slot == EQ::invslot::slotGeneral1 && !item->Magic && item->NoDrop != 0 && !inst->IsType(EQ::item::ItemClassBag) && !thief->CheckLoreConflict(item))
+				if (citem->equip_slot == EQ::invslot::slotGeneral1 && !item->Magic && item->NoDrop != 0 && !inst->IsType(EQ::item::ItemClassBag) && !thief->CheckLoreConflict(item) && citem->min_looter_level == 0)
 				{
 					steal_items[x] = item->ID;
 					if (inst->IsStackable())

@@ -702,6 +702,14 @@ void Client::CompleteConnect()
 		}
 		return;
 	}
+
+	else if (m_epp.hardcore_death_time > 0)
+	{
+		SetHardcoreDeathTimeStamp(0);
+		ClearPlayerInfoAndGrantStartingItems();
+		Kick();
+		WorldKick();
+	}
 }
 
 
@@ -1224,6 +1232,11 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 
 	/* Load Character Key Ring */
 	KeyRingLoad();
+
+	/*Load Looted Legacy Items*/
+	LoadLootedLegacyItems();
+
+	prev_last_login_time = m_pp.lastlogin;
 		
 	/* Set Total Seconds Played */
 	m_pp.lastlogin = time(nullptr);
@@ -1251,6 +1264,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
 	/* Set Mob variables for spawn */
 	class_ = m_pp.class_;
 	level = m_pp.level;
+	last_position_update_time = std::chrono::high_resolution_clock::now();
+	m_RewindLocation = glm::vec3();
+	m_LastLocation = glm::vec3();
 	m_Position.x = m_pp.x;
 	m_Position.y = m_pp.y;
 	m_Position.z = m_pp.z;
@@ -2813,6 +2829,21 @@ void Client::Handle_OP_ClickObject(const EQApplicationPacket *app)
 	ClickObject_Struct* click_object = (ClickObject_Struct*)app->pBuffer;
 	Entity* entity = entity_list.GetID(click_object->drop_id);
 	if (entity && entity->IsObject()) {
+		if (entity->CastToObject()->IsPlayerDrop())
+		{
+			if (IsSelfFound() || IsSoloOnly())
+			{
+				Message(CC_Red, "You cannot pick up dropped player items because you are performing a self found or solo challenge.");
+				auto outapp = new EQApplicationPacket(OP_ClickObject, sizeof(ClickObject_Struct));
+				ClickObject_Struct* loreitem = (ClickObject_Struct*)outapp->pBuffer;
+				loreitem->player_id = click_object->player_id;
+				loreitem->drop_id = 0xFFFFFFFF;
+				QueuePacket(outapp);
+				safe_delete(outapp);
+				return;
+			}
+		}
+
 		Object* object = entity->CastToObject();
 
 		object->HandleClick(this, click_object);
@@ -2987,6 +3018,50 @@ void Client::Handle_OP_ClientUpdate(const EQApplicationPacket *app)
 	if ((rewind_x_diff > 5000) || (rewind_y_diff > 5000))
 		m_RewindLocation = glm::vec3(ppu->x_pos, ppu->y_pos, (float)ppu->z_pos / 10.0f);
 
+	glm::vec3 newPosition(ppu->x_pos, ppu->y_pos, ppu->z_pos / 10.0f);
+	bool bSkip = false;
+	if (m_LastLocation == glm::vec3())
+	{
+		m_LastLocation = newPosition;
+		m_Position.x = newPosition.x;
+		m_Position.y = newPosition.y;
+		m_Position.z = newPosition.z;
+
+		bSkip = true;
+	}
+	double dist = DistanceNoZ(m_LastLocation, newPosition);
+	double distFromExpected = DistanceNoZ(ExpectedRewindPos, newPosition);
+
+	bool shouldTryHackCheck = !exemptHackCount;
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	auto seconds = std::chrono::duration<double>(currentTime - last_position_update_time);
+	auto seccount = seconds.count();
+	auto distDivTime = 0.;
+	if (dist > 5.0 && seccount >= 1.0)
+	{
+		distDivTime = dist / seccount;
+	}
+
+	/*
+		If the PPU was a large jump, such as a cross zone gate or Call of Hero,
+			just update rewind coordinates to the new ppu coordinates. This will prevent exploitation.
+	*/
+
+	bool is_exempt_correct = false;
+
+	if (distFromExpected < 125.0 && ExpectedRewindPos != glm::vec3(0, 0, 0) && !bSkip)
+	{
+		is_exempt_correct = true;
+		ExpectedRewindPos = glm::vec3(0, 0, 0);
+	}
+	auto speed = GetRunspeed();
+	if (distDivTime >= 125.f && !is_exempt_correct && !GetGM() && client_state == CLIENT_CONNECTED)
+	{
+		std::string warped = std::string(GetCleanName()) + " - entity moving too fast: dist: " + std::to_string(dist) + ", distDivTime: " + std::to_string(distDivTime);
+		worldserver.SendEmoteMessage(0, 0, 250, CC_Default, "%s - entity moving too fast: %lf %lf - is_exempt_correct %s", GetCleanName(), dist, distDivTime, std::to_string(is_exempt_correct).c_str());
+		database.SetHackerFlag(this->account_name, this->name, warped.c_str());
+	}
+
 
 	if(proximity_timer.Check()) {
 		entity_list.ProcessMove(this, glm::vec3(ppu->x_pos, ppu->y_pos, (float)ppu->z_pos/10.0f));
@@ -3059,6 +3134,14 @@ void Client::Handle_OP_ClientUpdate(const EQApplicationPacket *app)
 	m_Position.x = ppu->x_pos;
 	m_Position.y = ppu->y_pos;
 	m_Position.z = (float)ppu->z_pos/10.0f;
+	m_RewindLocation = m_Position;
+	auto current_update_time = std::chrono::high_resolution_clock::now();
+	auto timeDiff = std::chrono::duration<double>(currentTime - last_position_update_time);
+	if (timeDiff.count() >= 1.0)
+	{
+		last_position_update_time = current_update_time;
+		m_LastLocation = m_Position;
+	}
 	//auto old_anim = animation;
 	animation = ppu->anim_type;
 	// No need to check for loc change, our client only sends this packet if it has actually moved in some way.
@@ -3230,6 +3313,59 @@ void Client::Handle_OP_Consider(const EQApplicationPacket *app)
 
 	QueuePacket(outapp);
 	safe_delete(outapp);
+
+	if (tmob->IsClient())
+	{
+		Client* tmobClient = tmob->CastToClient();
+
+		bool self_found = tmobClient->IsSelfFound();
+		bool solo_only = tmobClient->IsSoloOnly();
+		bool hardcore = tmobClient->IsHardcore();
+		if (self_found || solo_only || hardcore)
+		{
+			std::string ruleset_string = "This player is running the";
+			if (solo_only)
+				ruleset_string += " solo ";
+			if (self_found)
+				ruleset_string += " self found ";
+			if (hardcore)
+				ruleset_string += " hardcore ";
+			ruleset_string += "ruleset.";
+
+			Message(0, ruleset_string.c_str());
+
+		}
+	}
+	if (tmob->IsNPC())
+	{
+		if (tmob->CastToNPC()->HasEngageNotice() && tmob->CastToNPC()->fte_charid != 0)
+		{
+			bool is_same_group = false;
+			bool is_same_raid = false;
+			bool is_same_player = false;
+
+			//Check if the raid, group or player matches.
+			Raid *kr = entity_list.GetRaidByID(tmob->CastToNPC()->group_fte);
+			Group *kg = entity_list.GetGroupByID(tmob->CastToNPC()->raid_fte);
+			if (kr && kr == GetRaid())
+			{
+				is_same_raid = true;
+			}
+			else if (kg && kg == GetGroup())
+			{
+				is_same_group = true;
+			}
+			else if (tmob->CastToNPC()->fte_charid == CharacterID())
+			{
+				is_same_player = true;
+			}
+			//If we don't match the raid, group or same player, we see a message.
+			if (!is_same_raid && !is_same_group && !is_same_player)
+			{
+				Message(13, "This mob is currently engaged with another group, raid, or solo player.");
+			}
+		}
+	}
 	return;
 }
 
@@ -4798,6 +4934,12 @@ void Client::Handle_OP_GroupFollow(const EQApplicationPacket *app)
 		return;
 	}
 
+	if (IsSoloOnly())
+	{
+		Message(CC_Red, "You are solo and thus cannot join a group.");
+		return;
+	}
+
 	// If we've received the packet and it's valid, then we're either going to join the group or fail in some way. 
 	// In either case, the invite should be cleared so just do it now.
 	Log(Logs::General, Logs::Group, "%s is clearing the group invite.", GetName());
@@ -4808,6 +4950,18 @@ void Client::Handle_OP_GroupFollow(const EQApplicationPacket *app)
 
 	if (inviter != nullptr && inviter->IsClient()) 
 	{
+		if (inviter->CastToClient()->IsSoloOnly())
+		{
+			Message(CC_Red, "The inviter is solo only. You cannot join.");
+			return;
+		}
+
+		if (IsSelfFound() != inviter->CastToClient()->IsSelfFound())
+		{
+			Message(CC_Red, "The inviting player's self found flag does not match yours. You cannot join the group.");
+			return;
+		}
+
 		strn0cpy(gf->name1, inviter->GetName(), 64);
 		strn0cpy(gf->name2, this->GetName(), 64);
 
@@ -4963,6 +5117,12 @@ void Client::Handle_OP_GroupInvite2(const EQApplicationPacket *app)
 
 	Mob *Invitee = entity_list.GetMob(gis->invitee_name);
 
+	if (IsSoloOnly())
+	{
+		Message(CC_Red, "You have solo mode enabled, and cannot group with anyone.");
+		return;
+	}
+
 	if (Invitee == this)
 	{
 		Message_StringID(CC_Default, GROUP_INVITEE_SELF);
@@ -4971,6 +5131,16 @@ void Client::Handle_OP_GroupInvite2(const EQApplicationPacket *app)
 
 	if (Invitee) {
 		if (Invitee->IsClient()) {
+			if (Invitee->CastToClient()->IsSelfFound() != IsSelfFound())
+			{
+				Message(CC_Red, "This player has a different self found enabled than you do, and cannot group with you.");
+				return;
+			}
+			if (Invitee->CastToClient()->IsSoloOnly())
+			{
+				Message(CC_Red, "This player has solo mode enabled, and cannot group with you.");
+				return;
+			}
 			if (!Invitee->IsGrouped() && !Invitee->IsRaidGrouped())
 			{
 				if (app->GetOpcode() == OP_GroupInvite2)
@@ -5028,8 +5198,11 @@ void Client::Handle_OP_GroupInvite2(const EQApplicationPacket *app)
 	}
 	else
 	{
-		auto pack = new ServerPacket(ServerOP_GroupInvite, sizeof(GroupInvite_Struct));
-		memcpy(pack->pBuffer, gis, sizeof(GroupInvite_Struct));
+		auto pack = new ServerPacket(ServerOP_GroupInvite, sizeof(ServerGroupInvite_Struct));
+		ServerGroupInvite_Struct* sgis = (ServerGroupInvite_Struct*)pack->pBuffer;
+
+		memcpy(pack->pBuffer, gis, sizeof(ServerGroupInvite_Struct));
+		sgis->self_found = IsSelfFound();
 		worldserver.SendPacket(pack);
 		safe_delete(pack);
 	}
@@ -6524,6 +6697,12 @@ void Client::Handle_OP_RaidCommand(const EQApplicationPacket *app)
 		return;
 	}
 
+	if (IsSoloOnly())
+	{
+		Message(CC_Red, "You are solo only and cannot be invited to the raid.");
+		return;
+	}
+
 	RaidGeneral_Struct *ri = (RaidGeneral_Struct*)app->pBuffer;
 	//Say("RaidCommand(action) %d leader_name(68): %s, player_name(04) %s param(132) %d", ri->action, ri->leader_name, ri->player_name, ri->parameter);
 
@@ -6534,6 +6713,20 @@ void Client::Handle_OP_RaidCommand(const EQApplicationPacket *app)
 		Client *i = entity_list.GetClientByName(ri->player_name);
 		if (i)
 		{
+
+			if (i->IsSoloOnly())
+			{
+				Message(CC_Red, "This player is solo only and cannot be invited to the raid.");
+				return;
+			}
+
+			if (IsSelfFound() != i->IsSelfFound())
+			{
+				Message(CC_Red, "This player's self found flag does not match yours, and cannot be invited to the raid.");
+				return;
+			}
+
+			
 			//This sends an "invite" to the client in question.
 			auto outapp = new EQApplicationPacket(OP_RaidInvite, sizeof(RaidGeneral_Struct));
 			RaidGeneral_Struct *rg = (RaidGeneral_Struct*)outapp->pBuffer;
@@ -6580,6 +6773,35 @@ void Client::Handle_OP_RaidCommand(const EQApplicationPacket *app)
 			// fail
 			return;
 		}
+
+		if (leader->IsSoloOnly())
+		{
+			// this will reset the raid for the invited, but will not give them a message their raid was disbanded.
+			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(RaidGeneral_Struct));
+			RaidGeneral_Struct *rg = (RaidGeneral_Struct*)outapp->pBuffer;
+			rg->action = RaidCommandSendDisband;
+			strcpy(rg->leader_name, ri->player_name);
+			strcpy(rg->player_name, ri->player_name);
+			this->QueuePacket(outapp);
+			safe_delete(outapp);
+			Message(CC_Red, "The leader is solo only and cannot be invited to the raid? What's going on here, friend?");
+			return;
+		}
+
+		if (IsSelfFound() != leader->IsSelfFound())
+		{
+			// this will reset the raid for the invited, but will not give them a message their raid was disbanded.
+			auto outapp = new EQApplicationPacket(OP_RaidUpdate, sizeof(RaidGeneral_Struct));
+			RaidGeneral_Struct *rg = (RaidGeneral_Struct*)outapp->pBuffer;
+			rg->action = RaidCommandSendDisband;
+			strcpy(rg->leader_name, ri->player_name);
+			strcpy(rg->player_name, ri->player_name);
+			this->QueuePacket(outapp);
+			safe_delete(outapp);
+			Message(CC_Red, "The leader player's self found flag does not match yours. You cannot be invited to the raid.");
+			return;
+		}
+
 		if (i)
 		{
 			if (IsRaidGrouped())
@@ -7357,6 +7579,18 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 			continue;
 		}
 
+		bool expansion_enabled = RuleR(World, CurrentExpansion) >= ml.min_expansion && RuleR(World, CurrentExpansion) < ml.max_expansion;
+		bool expansion_all = ml.min_expansion == 0.0f && ml.max_expansion == 0.0f;
+
+		if (!expansion_enabled && !expansion_all)
+		{
+			continue;
+		}
+
+		const EQ::ItemData* item = database.GetItem(ml.item);
+		if (!item)
+			continue;
+
 		int32 fac = tmp ? tmp->GetPrimaryFaction() : 0;
 		int32 facmod = GetModCharacterFactionLevel(fac);
 		if(IsInvisible(tmp))
@@ -7381,17 +7615,20 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
 	}
 	const EQ::ItemData* item = nullptr;
 	uint32 prevcharges = 0;
-	if (item_id == 0) { //check to see if its on the temporary table
-		std::list<TempMerchantList> tmp_merlist = zone->tmpmerchanttable[tmp->GetNPCTypeID()];
-		std::list<TempMerchantList>::const_iterator tmp_itr;
-		TempMerchantList ml;
-		for (tmp_itr = tmp_merlist.begin(); tmp_itr != tmp_merlist.end(); ++tmp_itr){
-			ml = *tmp_itr;
-			if (mp->itemslot == ml.slot){
-				item_id = ml.item;
-				tmpmer_used = true;
-				prevcharges = ml.charges;
-				break;
+	if (!IsSoloOnly() && !IsSelfFound())
+	{
+		if (item_id == 0) { //check to see if its on the temporary table
+			std::list<TempMerchantList> tmp_merlist = zone->tmpmerchanttable[tmp->GetNPCTypeID()];
+			std::list<TempMerchantList>::const_iterator tmp_itr;
+			TempMerchantList ml;
+			for (tmp_itr = tmp_merlist.begin(); tmp_itr != tmp_merlist.end(); ++tmp_itr) {
+				ml = *tmp_itr;
+				if (mp->itemslot == ml.slot) {
+					item_id = ml.item;
+					tmpmer_used = true;
+					prevcharges = ml.charges;
+					break;
+				}
 			}
 		}
 	}
@@ -8545,6 +8782,11 @@ void Client::Handle_OP_Trader(const EQApplicationPacket *app)
 
 		if (ints->Code == BazaarTrader_StartTraderMode && app->size == sizeof(Trader_Struct))
 		{
+			if (IsSoloOnly() || IsSelfFound())
+			{
+				Message(CC_Red, "You are solo or self found only, and cannot list or sell items in The Bazaar.");
+				return;
+			}
 			GetItems_Struct* gis = GetTraderItems();
 		//	bool TradeItemsValid = true;
 
@@ -8668,6 +8910,13 @@ void Client::Handle_OP_Trader(const EQApplicationPacket *app)
 
 void Client::Handle_OP_TraderBuy(const EQApplicationPacket *app) 
 {
+
+	if (IsSoloOnly() || IsSelfFound())
+	{
+		TradeRequestFailed(app);
+		Message(CC_Red, "You are solo or self found only, and cannot purchase items from The Bazaar.");
+		return;
+	}
 	// Bazaar Trader:
 	//
 	// Client has elected to buy an item from a Trader
@@ -8719,12 +8968,39 @@ void Client::Handle_OP_TradeRequest(const EQApplicationPacket *app)
 
 	if (tradee && tradee->IsClient()) 
 	{
-
 		if (IsFeigned())
 		{
 			FinishTrade(this);
 			trade->Reset();
 			return;
+		}
+
+		if (IsSoloOnly())
+		{
+			Message(CC_Red, "You are doing a solo-self-found run. You cannot trade with other players.");
+			FinishTrade(this);
+			trade->Reset();
+			return;
+		}
+
+
+		if (tradee->CastToClient()->IsSoloOnly())
+		{
+			Message(CC_Red, "Your trade partner is doing a solo-self-found run. You cannot trade with them.");
+			FinishTrade(this);
+			trade->Reset();
+			return;
+		}
+
+		if (tradee->CastToClient()->IsSelfFound() == true || IsSelfFound() == true)
+		{
+			if (tradee->CastToClient()->IsSelfFound() != IsSelfFound())
+			{
+				Message(CC_Red, "This player does not match your self-found flags. You cannot trade with them.");
+				FinishTrade(this);
+				trade->Reset();
+				return;
+			}
 		}
 
 		if (trade->state != TradeNone && trade->state != Requesting) {

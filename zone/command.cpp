@@ -66,6 +66,7 @@
 #include "water_map.h"
 #include "worldserver.h"
 #include "queryserv.h"
+#include "zonedb.h"
 
 extern WorldServer worldserver;
 extern QueryServ* QServ;
@@ -162,6 +163,7 @@ int command_init(void)
 		command_add("beard", "- Change the beard of your target.", AccountStatus::GMImpossible, command_beard) ||
 		command_add("beardcolor", "- Change the beard color of your target.", AccountStatus::GMImpossible, command_beardcolor) ||
 		command_add("bestz", "- Ask map for a good Z coord for your x,y coords.", AccountStatus::ApprenticeGuide, command_bestz) ||
+		command_add("betabuff", "[level] - Buffs user's player to provided level, giving level * 100 platinum, along with providing a (potentially non era-specific) set of reagents, spells and skills.", AccountStatus::GMImpossible, command_betabuff) ||
 		command_add("bind", "- Sets your targets bind spot to their current location.", AccountStatus::SeniorGuide, command_bind) ||
 		command_add("boatinfo", "- Gets infomation about the boats currently spawned in the zone.", AccountStatus::SeniorGuide, command_boatinfo) ||
 		command_add("bug", "- Bug report system. Encase your bug in quotes. Type: #bug <quote>I have a bug</quote>.", AccountStatus::EQSupport, command_bug) ||
@@ -230,6 +232,7 @@ int command_init(void)
 		command_add("godmode", "[on/off] - Turns on/off hideme, gmspeed, invul, and flymode.", AccountStatus::GMMgmt, command_godmode) ||
 		command_add("goto", "[x] [y] [z] - Teleport to the provided coordinates or to your target.", AccountStatus::ApprenticeGuide, command_goto) ||
 		command_add("grid", "[add/delete] [grid_num] [wandertype] [pausetype] - Create/delete a wandering grid.", AccountStatus::GMImpossible, command_grid) ||
+		command_add("gridrecord", "[start|stop|addwp] - Record a grid using start, stop and use AddWp to add a waypoint to the grid in question.", 170, command_gridrecord) ||
 		command_add("guild", "- Guild manipulation commands. Use argument help for more info.", AccountStatus::EQSupport, command_guild) ||
 		command_add("guildapprove", "[guildapproveid] - Approve a guild with specified ID (guild creator receives the id).", AccountStatus::EQSupport, command_guildapprove) ||
 		command_add("guildcreate", "[guildname] - Creates an approval setup for guild name specified.", AccountStatus::EQSupport, command_guildcreate) ||
@@ -367,6 +370,7 @@ int command_init(void)
 		command_add("setgreed", "[greed] - Sets a merchant greed value.", AccountStatus::GMAdmin, command_setgreed) ||
 		command_add("setlanguage", "[language ID] [value] - Set your target's language skillnum to value.", AccountStatus::GMAreas, command_setlanguage) ||
 		command_add("setlsinfo", "[email] [password] - Set login server email address and password (if supported by login server).", AccountStatus::Max, command_setlsinfo) ||
+		command_add("setnpcexpansion", "[min_expansion] [max_expansion] - Restrict an NPC's spawn2 (spawn location) by min, max expansion. These are float values.", AccountStatus::GMAdmin, command_setnpcexpansion) ||
 		command_add("setpass", "[accountname] [password] - Set local password for accountname.", AccountStatus::Max, command_setpass) ||
 		command_add("setskill", "[skillnum] [value] - Set your target's skill skillnum to value.", AccountStatus::GMAreas, command_setskill) ||
 		command_add("setskillall", "[value] - Set all of your target's skills to value.", AccountStatus::GMAreas, command_setskillall) ||
@@ -2525,6 +2529,39 @@ void command_delacct(Client *c, const Seperator *sep){
 			c->Message(CC_Default, "Unable to delete account.");
 }
 
+void command_setnpcexpansion(Client* c, const Seperator* sep)
+{
+	if (sep->arg[1][0] && sep->arg[2][0]  && c->GetTarget() && c->GetTarget()->IsNPC() && c->GetTarget()->CastToNPC()->GetSpawnPointID() != 0)
+	{
+		std::string query = fmt::format(
+			"UPDATE spawn2 SET min_expansion = {}, max_expansion = {} WHERE id = {}",
+			std::stof(sep->arg[1]),
+			std::stof(sep->arg[2]),
+			c->GetTarget()->CastToNPC()->GetSpawnPointID()
+
+		);
+		auto results = database.QueryDatabase(query);
+		if (!results.Success()) {
+			c->Message(CC_Red, "Failed to set spawn expansion bitmask.");
+			return;
+		}
+
+		c->Message(
+			CC_Default,
+			fmt::format(
+				"Name: {} Min Expansion {} Max Expansion {} Successfully Set",
+				c->GetTarget()->GetCleanName(),
+				std::stof(sep->arg[1]),
+				std::stof(sep->arg[2])
+			).c_str()
+		);
+	}
+	else
+	{
+		c->Message(CC_Default, "Usage: #setnpcexpansion [min_expansion] [max_expansion]");
+	}
+}
+
 void command_setpass(Client *c, const Seperator *sep){
 	int arguments = sep->argnum;
 	if (arguments < 2) {
@@ -2668,6 +2705,121 @@ void command_grid(Client* c, const Seperator* sep) {
 		c->Message(CC_Default, "Usage: #grid add/delete grid_num wandertype pausetype");
 		c->Message(CC_Default, "Usage: #grid max - displays the highest grid ID used in this zone (for add)");
 	}
+}
+
+std::vector<std::string> grid_wander_types = { "circle","rand10","random","patrol","onewayrepop","random5los","onewaydepop","wp0center","rcenter","randpath" };
+
+std::vector<std::string> grid_pause_types = { "rph", "full","pr" };
+
+
+
+void command_gridrecord(Client* c, const Seperator* sep)
+{
+	int32 highest_grid_plus_one = database.GetHighestGrid(zone->GetZoneID()) + 1;
+
+	//#gridrecord, no params
+
+	if (sep->arg[1][0] == 0 || strcasecmp(sep->arg[1], "help") == 0)
+	{
+		goto HelpLabel;
+	}
+
+	if (strcasecmp(sep->arg[1], "start") == 0)
+	{
+		GridWanderType wander_type = GridWanderType::eGridPatrol;
+		GridPauseType pause_type = GridPauseType::eGridPauseFull;
+		if (sep->arg[2][0] != 0)
+		{
+			auto wander_it = std::find(grid_wander_types.begin(), grid_wander_types.end(), (const char*)(sep->arg[2]));
+			auto pause_it = std::find(grid_pause_types.begin(), grid_pause_types.end(), (const char*)(sep->arg[3]));
+			if (wander_it != grid_wander_types.end())
+				wander_type = (GridWanderType)std::distance(grid_wander_types.begin(), wander_it);
+			if (pause_it != grid_pause_types.end())
+				pause_type = (GridPauseType)std::distance(grid_wander_types.begin(), pause_it);
+			if (c->gm_grid)
+				safe_delete(c->gm_grid);
+			if (!c->gm_grid)
+			{
+				c->gm_grid = new DBGrid_Struct();
+				c->gm_grid->id = highest_grid_plus_one;
+				c->gm_grid->wander_type = wander_type;
+				c->gm_grid->pause_type = pause_type;
+				c->gm_grid_waypoint_list.clear();
+				c->Message(CC_Default, "Started recording grid %i, wandertype %i pausetype %i", c->gm_grid->id, wander_type, pause_type);
+			}
+		}
+		else
+		{
+			goto HelpLabel;
+		}
+	}
+	else if (strcasecmp(sep->arg[1], "stop") == 0)
+	{
+		if (c->gm_grid && c->gm_grid->id != 0)
+		{
+			database.ModifyGrid(c, false, c->gm_grid->id, (uint8)c->gm_grid->wander_type, (uint8)c->gm_grid->pause_type, zone->GetZoneID());
+			int i = 1;
+			for (auto wp : c->gm_grid_waypoint_list)
+			{
+				glm::vec4 wpposition;
+				wpposition.x = wp.x;
+				wpposition.y = wp.y;
+				wpposition.z = wp.z;
+				wpposition.w = wp.heading;
+				database.AddWP(c, c->gm_grid->id, wp.index, wpposition, wp.pause, zone->GetZoneID());
+				i++;
+			}
+			c->gm_grid_waypoint_list.clear();
+			c->Message(CC_Default, "Wrote grid %i to DB, wandertype %i pausetype %i, Wrote %i waypoints", c->gm_grid->id, (uint8)c->gm_grid->wander_type, (uint8)c->gm_grid->pause_type, i);
+		}
+		if (c->gm_grid)
+			safe_delete(c->gm_grid);
+	}
+	else if (strcasecmp(sep->arg[1], "addwp") == 0)
+	{
+		if (c->gm_grid && c->gm_grid->id != 0)
+		{
+			int pause = 0;
+			if (sep->arg[2][0] != 0)
+				pause = atoi(sep->arg[2]);
+
+			auto index = c->gm_grid_waypoint_list.size() + 1;
+			wplist wp;
+			wp.centerpoint = 0;
+			wp.heading = c->GetHeading();
+			wp.x = c->GetX();
+			wp.y = c->GetY();
+			//start bestz
+			glm::vec3 me;
+			me.x = c->GetX();
+			me.y = c->GetY();
+			me.z = c->GetZ();
+			float best_z = zone->zonemap ? zone->zonemap->FindBestZ(me, nullptr) : c->GetZ();
+			wp.z = best_z;
+			// end best_z
+
+
+			wp.pause = pause;
+			wp.index = index;
+			c->gm_grid_waypoint_list.push_back(wp);
+			c->Message(CC_Default, "Added WP %i to Temporary Grid %i", wp.index, c->gm_grid->id);
+		}
+		else
+		{
+			goto HelpLabel;
+		}
+	}
+	else
+	{
+	HelpLabel:
+		c->Message(CC_Default, "Usage: #gridrecord [start|stop|addwp]");
+		c->Message(CC_Default, "[start] [type = ] [pausetype = full] ");
+		c->Message(CC_Default, "[stop] [type] [pausetype = full] ");
+		c->Message(CC_Default, "Valid WanderTypes (use abbreviation): [circle|rand10|random|patrol|onewayrepop|random5los|onewaydepop|wp0centerpoint (wp0center)|randcenterpoint (rcenter)|randpath ]");
+		c->Message(CC_Default, "Valid FullTypes (use abbreviation): [randomplushalf (rph)|pausefull (full) |pauserandom (pr)]");
+		c->Message(CC_Default, "Max Grid in Zone +1: %i", highest_grid_plus_one);
+	}
+
 }
 
 void command_wp(Client *c, const Seperator *sep){
@@ -10873,6 +11025,312 @@ void command_viewzoneloot(Client* c, const Seperator* sep)
 		);
 	}
 }
+
+void command_betabuff(Client* c, const Seperator* sep)
+{
+	//Arguments?
+	if (sep->IsNumber(1))
+	{
+		//Variables
+		uint32 level = atoi(sep->arg[1]);
+		int curspell = 0;
+		int book_slot = 0;
+
+		uint16 skillLevel = HARD_SKILL_CAP;
+
+		int pClass = c->GetClass();
+
+		bool hasBetaBuffed = false;
+
+		int bandedIDs[12] = { 3053,3054,3055,3056,3061,3057,3058,3059,3060,3062,3063,3064 };
+		int smallBandedIDs[12] = { 3065,3066,3067,3068,3069,3070,3071,3072,3073,3074,3075,3076 };
+		int largeBandedIDs[12] = { 3080,3084,3087,3089,3088,3083,3085,3077,3082,3081,3078,3079 };
+		int rawSilkIDs[12] = { 1160,1161,1162,1163,1164,1165,1166,1167,1168,1169,1170,1171 };
+		int reinforcedIDs[12] = { 2237,2238,2239,2240,2241,2242,2243,2244,2245,2246,2247 };
+		int smallReinforcedIDs[12] = { 2249,2250,2251,2252,2253,2254,2255,2256,2257,2258,2259,2260 };
+		int largeReinforcedIDs[12] = { 2261,2262,2263,2264,2265,2266,2267,2268,2269,2270,2271,2272 };
+
+		//Get Armor Size based on Race(Function)
+		uint8 armorSize = c->GetRaceArmorSize();
+		//Check if level argument is lower than our level
+
+
+		if ((uint32)c->GetLevel() >= level)
+		{
+			c->Message(CC_Red, "This character cannot be buffed to this level.");
+			return;
+		}
+
+		//Check MaxBetaBuffLevel Rule
+		if (level > RuleI(Character, MaxBetaBuffLevel))
+		{
+			c->Message(CC_Red, "This character cannot be buffed to this level. The current betabuff cap is: %i", RuleI(Character, MaxBetaBuffLevel));
+			return;
+		}
+
+		//Check if character is above the max level 
+		if (c->GetLevel() > RuleI(Character, MaxLevel))
+		{
+			c->Message(CC_Red, "This character is above the maximum level for test buff.");
+			return;
+		}
+
+		//Set Level and Exp
+		c->SetLevel(1, true);
+		c->SetLevel(level, true);
+		c->AddEXPPercent(10, level);
+
+		//Scribe Spells
+		for (curspell = 0, book_slot = c->GetNextAvailableSpellBookSlot(); curspell < SPDAT_RECORDS && book_slot < MAX_PP_SPELLBOOK; curspell++, book_slot = c->GetNextAvailableSpellBookSlot(book_slot))
+		{
+			if (spells[curspell].classes[c->GetPP().class_ - 1] >= 1 && spells[curspell].classes[c->GetPP().class_ - 1] <= level) {
+				if (!c->HasSpellScribed(curspell)) {
+					c->ScribeSpell(curspell, book_slot);
+				}
+			}
+		}
+		// Skills
+		for (EQ::skills::SkillType skill_num = EQ::skills::Skill1HBlunt; skill_num <= EQ::skills::HIGHEST_SKILL; skill_num = (EQ::skills::SkillType)(skill_num + 1))
+		{
+			uint16 max_level = c->GetMaxSkillAfterSpecializationRules(skill_num, c->MaxSkill(skill_num));
+			uint16 cap_level = skillLevel > max_level ? max_level : skillLevel;
+			c->SetSkill(skill_num, cap_level);
+		}
+
+		//Summon Bags, Gear and Plat for first time beta buff
+		if (!c->HasBetaBuffGearFlag())
+		{
+			int16 slot = c->GetInv().FindFreeSlot(0, 0);
+			if (slot >= 0)
+				c->SummonItem(17046, 1, slot);
+			slot = c->GetInv().FindFreeSlot(0, 0);
+			if (slot >= 0)
+				c->SummonItem(17046, 1, slot);
+			slot = c->GetInv().FindFreeSlot(0, 0);
+			if (slot >= 0)
+				c->SummonItem(17046, 1, slot);
+			slot = c->GetInv().FindFreeSlot(0, 0);
+			if (slot >= 0)
+				c->SummonItem(6352, 1, slot);
+
+			//Armor Summoning Skeleton
+			switch (pClass)
+			{
+			case CLERIC:
+			case PALADIN:
+			case SHAMAN:
+			case RANGER:
+			case SHADOWKNIGHT:
+			case BARD:
+			case ROGUE:
+			case WARRIOR:
+				if (armorSize == 0) // Small
+				{
+					for (int i : smallBandedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+				}
+				else if (armorSize == 1) // Medium
+				{
+					for (int i : bandedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								if (slot >= 0)
+									c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+				}
+				if (armorSize == 2) // Large
+				{
+					for (int i : largeBandedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								if (slot >= 0)
+									c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+				}
+				break;
+			case NECROMANCER:
+			case ENCHANTER:
+			case MAGICIAN:
+			case WIZARD:
+				for (int i : rawSilkIDs)
+				{
+					const EQ::ItemData* banded_item = database.GetItem(i);
+					slot = c->GetInv().FindFreeSlot(0, 0);
+					if (banded_item && slot >= 0)
+					{
+						c->SummonItem(i, 1, slot);
+						if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+						{
+							slot = c->GetInv().FindFreeSlot(0, 0);
+							c->SummonItem(i, 1, slot);
+						}
+					}
+				}
+				break;
+			case DRUID:
+			case BEASTLORD:
+			case MONK:
+				if (armorSize == 0)
+				{
+					for (int i : smallReinforcedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								if (slot >= 0)
+									c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+					break;
+				}
+
+				if (armorSize == 1)
+				{
+					for (int i : reinforcedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								if (slot >= 0)
+									c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+				}
+
+				if (armorSize == 2) // LARGE
+				{
+					for (int i : largeReinforcedIDs)
+					{
+						const EQ::ItemData* banded_item = database.GetItem(i);
+						slot = c->GetInv().FindFreeSlot(0, 0);
+						if (banded_item && slot >= 0)
+						{
+							c->SummonItem(i, 1, slot);
+							if (banded_item->Slots == 1536) // SLOT_WRIST IDs
+							{
+								slot = c->GetInv().FindFreeSlot(0, 0);
+								if (slot >= 0)
+									c->SummonItem(i, 1, slot);
+							}
+						}
+					}
+				}
+
+				//Weapons:
+				//ID:  Weapon:
+				//6350 Fine Steel Warhammer
+				//6352 Fine Steel Great Staff
+				//6359 Stein of Moggok
+				//9002 Round Shield
+				//7352 Fine Steel Rapier
+				//7350 Fine Steel Dagger
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(6350, 1, slot);
+
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(6352, 1, slot);
+
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(9002, 1, slot);
+
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(7352, 1, slot);
+
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(7350, 1, slot);
+				slot = c->GetInv().FindFreeSlot(0, 0);
+				if (slot >= 0)
+					c->SummonItem(6359, 1, slot);
+
+				c->AddMoneyToPP(0, 0, 0, 100 * level, true);
+
+				//Give Sow and Strength incase we're encumbered or too low agility.
+				c->SetGMSpellException(1);
+				c->SpellFinished(278, c); // Spirit of Wolf
+				c->SpellFinished(430, c); // Storm Strength
+				c->SetGMSpellException(0);
+
+
+				//Pet Reagents
+				switch (pClass)
+				{
+				case NECROMANCER:
+					slot = c->GetInv().FindFreeSlot(0, 0);
+					if(slot >= 20)
+						c->SummonItem(13073, 20, slot);
+					break;
+				case MAGICIAN:
+					slot = c->GetInv().FindFreeSlot(0, 0);
+					if (slot >= 20)
+						c->SummonItem(10015, 20, slot);
+					break;
+				case ENCHANTER:
+					slot = c->GetInv().FindFreeSlot(0, 0);
+					if (slot >= 20)
+						c->SummonItem(13080, 20, slot);
+					break;
+				}
+			}
+
+			c->SetBetaBuffGearFlag(1);
+			c->Save(1);
+
+		}
+	}
+	else
+	{
+		c->Message(CC_Default, "Usage: #betabuff [level] - level must be a level higher than your current level.");
+	}
+}
+
+
 
 //Please keep this at the bottom of command.cpp! Feel free to use this for temporary commands used in testing :)
 void command_testcommand(Client *c, const Seperator *sep)

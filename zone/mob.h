@@ -330,7 +330,7 @@ public:
 	virtual bool Death(Mob* killerMob, int32 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, uint8 killedby = 0, bool bufftic = false) = 0;
 	virtual void Damage(Mob* from, int32 damage, uint16 spell_id, EQ::skills::SkillType attack_skill,
 		bool avoidable = true, int8 buffslot = -1, bool iBuffTic = false) = 0;
-	inline virtual void SetHP(int32 hp) { if (hp >= max_hp) cur_hp = max_hp; else cur_hp = hp;}
+	virtual void SetHP(int32 hp);
 	inline void SetOOCRegen(int32 newoocregen) {oocregen = newoocregen;}
 	virtual void Heal();
 	virtual void HealDamage(uint32 amount, Mob* caster = nullptr, uint16 spell_id = SPELL_UNKNOWN, bool hot = false);
@@ -508,6 +508,8 @@ public:
 	uint32 GetHateAmount(Mob* tmob, bool include_bonus = true) { return hate_list.GetEntHate(tmob, include_bonus);}
 	uint32 GetDamageAmount(Mob* tmob, bool combine_pet_dmg = false) { return hate_list.GetEntDamage(tmob, combine_pet_dmg);}
 	Mob* GetHateTop() { return hate_list.GetTop();}
+	void HandleFTEEngage(Client* c) { return hate_list.HandleFTEEngage(c); }
+	void HandleFTEDisengage() { return hate_list.HandleFTEDisengage(); }
 	Mob* GetDamageTop(int32& return_dmg, bool combine_pet_dmg = false, bool clients_only = false) { return hate_list.GetDamageTop(return_dmg, combine_pet_dmg, clients_only); }
 	Mob* GetHateRandom() { return hate_list.GetRandom();}
 	Client* GetHateRandomClient(int32 max_dist = 0) { return hate_list.GetRandomClient(max_dist); }
@@ -521,7 +523,7 @@ public:
 	bool CheckHateSummon(Mob* summoned);
 	void FaceTarget(Mob* MobToFace = 0);
 	void SetHeading(float iHeading) { if(m_Position.w != iHeading) { m_Position.w = iHeading;} }
-	void WipeHateList();
+	void WipeHateList(bool from_memblur = false);
 	void PrintHateListToClient(Client *who) { hate_list.PrintToClient(who); }
 	std::list<tHateEntry*>& GetHateList() { return hate_list.GetHateList(); }
 	bool CheckLosFN(Mob* other, bool spell_casting = false);
@@ -940,13 +942,14 @@ public:
 	void SetMerchantSession(uint16 value) { MerchantSession = value; }
 	uint16 GetMerchantSession() { return MerchantSession; }
 	uint32 player_damage;
+	uint32 ssf_player_damage;
 	uint32 dire_pet_damage;
 	uint32 total_damage;
 	uint32 ds_damage;
 	uint32 npc_damage;
 	uint32 gm_damage;
 	uint32 pbaoe_damage;
-	void DamageTotalsWipe();
+	void DamageTotalsWipe(bool from_memblur = false);
 	void ReportDmgTotals(Client* client, bool corpse = false, bool xp = false, bool faction = false, int32 dmg_amt = 0);
 	float  GetBaseEXP();
 	static bool IsPlayableRace(uint16 race);
@@ -1151,6 +1154,7 @@ protected:
 	TemporaryPetsEffect* temporary_pets_effect;
 
 	glm::vec3 m_RewindLocation;
+	glm::vec3 m_LastLocation;
 	Timer rewind_timer;
 
 	uint8 haircolor;

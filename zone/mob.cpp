@@ -114,7 +114,7 @@ Mob::Mob(const char* in_name,
 	SetMoving(false);
 	moved=false;
 	m_RewindLocation = glm::vec3();
-
+	m_LastLocation = glm::vec3();
 	name[0]=0;
 	orig_name[0]=0;
 	clean_name[0]=0;
@@ -386,6 +386,7 @@ Mob::Mob(const char* in_name,
 	dire_charmed = false;
 	feared = false;
 	player_damage = 0;
+	ssf_player_damage = 0;
 	dire_pet_damage = 0;
 	total_damage = 0;
 	ds_damage = 0;
@@ -2207,12 +2208,12 @@ bool Mob::RemoveFromHateList(Mob* mob)
 	return bFound;
 }
 
-void Mob::WipeHateList()
+void Mob::WipeHateList(bool from_memblur)
 {
 	if (!hate_list.IsEmpty())
 	{
 		SetTarget(nullptr);
-		hate_list.Wipe();
+		hate_list.Wipe(from_memblur);
 		DamageTotalsWipe();
 	}
 }
@@ -5283,6 +5284,51 @@ void Mob::SetRandomFeatures()
 			break;
 		default:
 			break;
+		}
+	}
+}
+
+void Mob::SetHP(int32 hp)
+{
+	if (hp >= max_hp)
+		cur_hp = max_hp; 
+	else 
+		cur_hp = hp;
+
+	if (IsNPC())
+	{
+		if ((float)cur_hp >= ((float)max_hp * (level <= 5 ? 0.995f : 0.997f))) // reset FTE
+		{
+			CastToNPC()->solo_group_fte = 0;
+			CastToNPC()->solo_raid_fte = 0;
+			CastToNPC()->solo_fte_charid = 0;
+			ssf_player_damage = 0;
+		}
+
+		if (CastToNPC()->fte_charid != 0 && (float)cur_hp >= ((float)max_hp * (level <= 5 ? 0.995f : 0.997f)))
+		{
+			uint32 curtime = (Timer::GetCurrentTime());
+			uint32 lastAggroTime = CastToNPC()->GetAggroDeaggroTime();
+
+			//If we're engaged for 60 seconds, clear fte
+			if(lastAggroTime != 0xFFFFFFFF && curtime >= lastAggroTime + 60000 && hate_list.GetNumHaters() > 0)
+			{
+				CastToNPC()->fte_charid = 0;
+				CastToNPC()->group_fte = 0;
+				CastToNPC()->raid_fte = 0;
+				if (CastToNPC()->HasEngageNotice()) {
+					CastToNPC()->HandleFTEDisengage();
+				}
+			}
+			else if (hate_list.GetNumHaters() == 0)
+			{
+				CastToNPC()->fte_charid = 0;
+				CastToNPC()->group_fte = 0;
+				CastToNPC()->raid_fte = 0;
+				if (CastToNPC()->HasEngageNotice()) {
+					CastToNPC()->HandleFTEDisengage();
+				}
+			}
 		}
 	}
 }

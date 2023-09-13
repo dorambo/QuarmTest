@@ -26,6 +26,7 @@
 #include "types.h"
 #include "dbcore.h"
 #include "linked_list.h"
+#include "servertalk.h"
 #include "eq_packet_structs.h"
 
 #include <cmath>
@@ -105,7 +106,7 @@ public:
 
 	/* Character Creation */
 	bool	SaveCharacterCreate(uint32 character_id, uint32 account_id, PlayerProfile_Struct* pp);
-
+	bool    IsCharacterNameReserved(uint32 account_id, const char* input_character_name);
 	bool	MoveCharacterToZone(const char* charname, const char* zonename);
 	bool	MoveCharacterToZone(const char* charname, const char* zonename,uint32 zoneid);
 	bool	MoveCharacterToZone(uint32 iCharID, const char* iZonename);
@@ -131,7 +132,7 @@ public:
 	uint32	GetAccountIDByName(std::string account_name, int16* status = 0, uint32* lsid = 0);
 	void	GetAccountName(uint32 accountid, char* name, uint32* oLSAccountID = 0);
 	void	GetCharName(uint32 char_id, char* name);
-	uint32	GetCharacterInfo(const char* iName, uint32* oAccID = 0, uint32* oZoneID = 0, float* oX = 0, float* oY = 0, float* oZ = 0);
+	uint32	GetCharacterInfo(const char* iName, uint32* oAccID = 0, uint32* oZoneID = 0, float* oX = 0, float* oY = 0, float* oZ = 0, uint64* oDeathTime = 0);
 	uint32	GetCharacterID(const char *name);
 	bool	AddBannedIP(std::string banned_ip, std::string notes); //Add IP address to the banned_ips table.
 	bool	CheckBannedIPs(std::string login_ip); //Check incoming connection against banned IP table.
@@ -142,6 +143,7 @@ public:
 	void	ClearAccountActive(uint32 AccountID);
 	void	SetAccountActive(uint32 AccountID);
 	uint32	GetLevelByChar(const char* charname);
+	uint32	GetHardcoreStatus(const char* charname);
 	bool	NoRentExpired(const char* name);
 
 	/*
@@ -219,6 +221,8 @@ public:
 	void	SetFirstLogon(uint32 CharID, uint8 firstlogon);
 	void	AddReport(std::string who, std::string against, std::string lines);
 	struct TimeOfDay_Struct		LoadTime(time_t &realtime);
+	bool LoadNextQuakeTime(ServerEarthquakeImminent_Struct &realtime);
+	bool SaveNextQuakeTime(ServerEarthquakeImminent_Struct & earthquake_struct);
 	bool	SaveTime(int8 minute, int8 hour, int8 day, int8 month, int16 year);
 	bool	AdjustSpawnTimes();
 	uint8   GetZoneRandomLoc(uint32 zoneid);

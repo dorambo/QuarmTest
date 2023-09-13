@@ -33,7 +33,10 @@
 #include "../common/features.h"
 #include "../common/spdat.h"
 #include "../common/guilds.h"
+#include "../common/languages.h"
 #include "../common/rulesys.h"
+#include "../common/races.h"
+#include "../common/classes.h"
 #include "../common/strings.h"
 #include "../common/data_verification.h"
 #include "position.h"
@@ -169,6 +172,7 @@ Client::Client(EQStreamInterface* ieqs)
 	WithCustomer = false;
 	TraderSession = 0;
 	WID = 0;
+	gm_grid = nullptr;
 	account_id = 0;
 	admin = AccountStatus::Player;
 	lsaccountid = 0;
@@ -178,6 +182,7 @@ Client::Client(EQStreamInterface* ieqs)
 	guildrank = 0;
 	memset(lskey, 0, sizeof(lskey));
 	strcpy(account_name, "");
+	prev_last_login_time = 0;
 	tellsoff = false;
 	last_reported_mana = 0;
 	last_reported_endur = 0;
@@ -237,6 +242,10 @@ Client::Client(EQStreamInterface* ieqs)
 	GlobalChatLimiterTimer = new Timer(RuleI(Chat, IntervalDurationMS));
 	AttemptedMessages = 0;
 	TotalKarma = 0;
+	HackCount = 0;
+	last_position_update_time = std::chrono::high_resolution_clock::now();
+	exemptHackCount = false;
+	ExpectedRewindPos = glm::vec3();
 	m_ClientVersion = EQ::versions::Unknown;
 	m_ClientVersionBit = 0;
 	AggroCount = 0;
@@ -6083,4 +6092,267 @@ bool Client::IsLockSavePosition() const
 void Client::SetLockSavePosition(bool lock_save_position)
 {
 	Client::m_lock_save_position = lock_save_position;
+}
+
+void Client::RemoveAllSkills()
+{
+	for (uint32 i = 0; i <= EQ::skills::HIGHEST_SKILL; ++i) {
+		m_pp.skills[i] = 0;
+	}
+	database.DeleteCharacterSkills(CharacterID(), &m_pp);
+}
+
+void Client::SetRaceStartingSkills()
+{
+	switch (m_pp.race)
+	{
+	case BARBARIAN:
+	case ERUDITE:
+	case HALF_ELF:
+	case HIGH_ELF:
+	case HUMAN:
+	case OGRE:
+	case TROLL:
+	{
+		// No Race Specific Skills
+		break;
+	}
+	case DWARF:
+	{
+		m_pp.skills[EQ::skills::SkillSenseHeading] = 50; //Even if we set this to 0, Intel client sets this to 50 anyway. Confirmed this is correct for era.
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillSenseHeading, 50);
+		break;
+	}
+	case DARK_ELF:
+	{
+		m_pp.skills[EQ::skills::SkillHide] = 50;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillHide, 50);
+		break;
+	}
+	case GNOME:
+	{
+		m_pp.skills[EQ::skills::SkillTinkering] = 50;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillTinkering, 50);
+		break;
+	}
+	case HALFLING:
+	{
+		m_pp.skills[EQ::skills::SkillHide] = 50;
+		m_pp.skills[EQ::skills::SkillSneak] = 50;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillHide, 50);
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillSneak, 50);
+		break;
+	}
+	case IKSAR:
+	{
+		m_pp.skills[EQ::skills::SkillForage] = 50;
+		m_pp.skills[EQ::skills::SkillSwimming] = 100;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillForage, 50);
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillSwimming, 100);
+		break;
+	}
+	case WOOD_ELF:
+	{
+		m_pp.skills[EQ::skills::SkillForage] = 50;
+		m_pp.skills[EQ::skills::SkillHide] = 50;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillForage, 50);
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillHide, 50);
+		break;
+	}
+	case VAHSHIR:
+	{
+		m_pp.skills[EQ::skills::SkillSafeFall] = 50;
+		m_pp.skills[EQ::skills::SkillSneak] = 50;
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillSafeFall, 50);
+		database.SaveCharacterSkill(CharacterID(), EQ::skills::SkillSneak, 50);
+		break;
+	}
+	}
+}
+
+void Client::SetRacialLanguages()
+{
+	switch (m_pp.race)
+	{
+	case BARBARIAN:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_BARBARIAN] = 100;
+		break;
+	}
+	case DARK_ELF:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DARK_ELVISH] = 100;
+		m_pp.languages[LANG_DARK_SPEECH] = 100;
+		m_pp.languages[LANG_ELDER_ELVISH] = 54;
+		m_pp.languages[LANG_ELVISH] = 54;
+		break;
+	}
+	case DWARF:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DWARVISH] = 100;
+		m_pp.languages[LANG_GNOMISH] = 25;
+		break;
+	}
+	case ERUDITE:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_ERUDIAN] = 100;
+		break;
+	}
+	case GNOME:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DWARVISH] = 25;
+		m_pp.languages[LANG_GNOMISH] = 100;
+		break;
+	}
+	case HALF_ELF:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_ELVISH] = 100;
+		break;
+	}
+	case HALFLING:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_HALFLING] = 100;
+		break;
+	}
+	case HIGH_ELF:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DARK_ELVISH] = 51;
+		m_pp.languages[LANG_ELDER_ELVISH] = 51;
+		m_pp.languages[LANG_ELVISH] = 100;
+		break;
+	}
+	case HUMAN:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		break;
+	}
+	case IKSAR:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DARK_SPEECH] = 100;
+		m_pp.languages[LANG_LIZARDMAN] = 100;
+		break;
+	}
+	case OGRE:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DARK_SPEECH] = 100;
+		m_pp.languages[LANG_OGRE] = 100;
+		break;
+	}
+	case TROLL:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_DARK_SPEECH] = 100;
+		m_pp.languages[LANG_TROLL] = 100;
+		break;
+	}
+	case WOOD_ELF:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_ELVISH] = 100;
+		break;
+	}
+	case VAHSHIR:
+	{
+		m_pp.languages[LANG_COMMON_TONGUE] = 100;
+		m_pp.languages[LANG_COMBINE_TONGUE] = 100;
+		m_pp.languages[LANG_ERUDIAN] = 32;
+		m_pp.languages[LANG_VAH_SHIR] = 100;
+		break;
+	}
+	}
+}
+
+void Client::SetClassLanguages()
+{
+	// we only need to handle one class, but custom server might want to do more
+	switch (m_pp.class_) {
+	case ROGUE:
+		m_pp.languages[LANG_THIEVES_CANT] = 100;
+		break;
+	default:
+		break;
+	}
+}
+
+
+uint8 Client::GetRaceArmorSize() 
+{
+
+	uint8 armorSize = 0;
+	int pRace = GetBaseRace();
+
+	switch (pRace)
+	{
+	case WOOD_ELF: // Small
+	case HIGH_ELF:
+	case DARK_ELF:
+	case DWARF:
+	case HALFLING:
+	case GNOME:
+		armorSize = 0;
+		break;
+	case BARBARIAN:  // Medium
+	case ERUDITE:
+	case HALF_ELF:
+	case IKSAR:
+	case HUMAN:
+		armorSize = 1;
+		break;
+	case TROLL: // Large
+	case OGRE:
+	case VAHSHIR:
+		armorSize = 2;
+		break;
+	}
+
+	return armorSize;
+}
+
+void Client::LoadLootedLegacyItems()
+{
+	std::string query = StringFormat("SELECT item_id FROM character_legacy_items "
+		"WHERE character_id = '%i' ORDER BY item_id", character_id);
+	auto results = database.QueryDatabase(query);
+	if (!results.Success()) {
+		return;
+	}
+
+	for (auto row = results.begin(); row != results.end(); ++row)
+		looted_legacy_items.insert(atoi(row[0]));
+
+}
+
+bool Client::CheckLegacyItemLooted(uint16 item_id)
+{
+	auto it = looted_legacy_items.find(item_id);
+	if (it != looted_legacy_items.end())
+	{
+		return true;
+	}
+	return false;
+}
+
+void Client::AddLootedLegacyItem(uint16 item_id)
+{
+	if (CheckLegacyItemLooted(item_id))
+		return;
+
+	std::string query = StringFormat("REPLACE INTO character_legacy_items (character_id, item_id) VALUES (%i, %i)", character_id, item_id);
+
+	auto results = database.QueryDatabase(query);
+	if (!results.Success()) {
+		return;
+	}
+	looted_legacy_items.insert(item_id);
+	
 }

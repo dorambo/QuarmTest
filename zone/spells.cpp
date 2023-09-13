@@ -2784,7 +2784,12 @@ bool Mob::SpellOnTarget(uint16 spell_id, Mob* spelltar, bool reflect, bool use_r
 			// not important to check limit on SE_Lull as it doesn't have one and if the other components won't land, then SE_Lull wont either
 			if (spells[spell_id].effectid[i] == SE_ChangeFrenzyRad || spells[spell_id].effectid[i] == SE_Harmony)
 			{
-				if ((IsClient() && spelltar->IsNPC() && spells[spell_id].max[i] != 0 && spelltar->GetLevel() > spells[spell_id].max[i]) ||
+				bool is_spell_target_out_of_range = spelltar->GetLevel() > spells[spell_id].max[i];
+				if (!RuleB(AlKabor, EnableLatePlanesHarmonyNerf) && spell_id == 250)
+				{
+					is_spell_target_out_of_range = false;
+				}
+				if ((IsClient() && spelltar->IsNPC() && spells[spell_id].max[i] != 0 && is_spell_target_out_of_range) ||
 					spelltar->GetSpecialAbility(IMMUNE_PACIFY))
 				{
 					spelltar->PacifyImmune = true;
@@ -3877,10 +3882,25 @@ float Mob::CheckResistSpell(uint8 resist_type, uint16 spell_id, Mob *caster, Mob
 	}
 
 	// Lull spells DO NOT use regular resists on initial cast, instead they use a value of 15.  Prathun pseudocode and live parses confirm.  Late luclin era change
-	if(IsHarmonySpell(spell_id))
+	if (RuleB(AlKabor, EnableLuclinHarmonyResistOverride))
 	{
-		target_resist = 15;
-		Log(Logs::Detail, Logs::Spells, "CheckResistSpell(): Spell: %d  Lull spell is overriding MR. target_resist is: %i resist_modifier is: %i", spell_id, target_resist, resist_modifier);
+		if (IsHarmonySpell(spell_id))
+		{
+			target_resist = 15;
+			Log(Logs::Detail, Logs::Spells, "CheckResistSpell(): Spell: %d  Lull spell is overriding MR. target_resist is: %i resist_modifier is: %i", spell_id, target_resist, resist_modifier);
+		}
+	}
+
+	if (RuleB(Quarm, EnableSpellSixLevelRule))
+	{
+		//Prathun's post just says If target is an NPC and caster is far below target's level, set level modifier to 1000.
+		if (caster)
+		{
+			if (IsNPC() && GetLevel() >= std::max(caster->GetLevel() + 7, (int)(caster->GetLevel() * 1.25f)))
+			{
+				level_mod = 1000;
+			}
+		}
 	}
 
 	//Add our level, resist and -spell resist modifier to our roll chance
