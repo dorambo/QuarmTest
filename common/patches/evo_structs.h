@@ -467,7 +467,7 @@ struct LoginInfo_Struct
 	/*151*/ uint8	unknown189[41];		
 	/*192*/ uint8   zoning;
 	/*193*/ uint8   unknown193[3];
-	/*196*/
+	/*196*/ uint8	unknown[192];
 };
 
 struct SpellBuff_Struct

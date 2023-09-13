@@ -30,7 +30,8 @@ namespace EQ
 			MacPC,
 			MacIntel,
 			MacPPC,
-			Mac
+			Mac,
+			Evo
 		};
 
 		enum ClientVersionBit : uint32 {

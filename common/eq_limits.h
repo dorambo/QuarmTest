@@ -21,6 +21,7 @@
 #include "eq_constants.h"
 #include "emu_versions.h"
 #include "../common/patches/mac_limits.h"
+#include "../common/patches/evo_limits.h"
 
 namespace EQ {
 	namespace inventory {

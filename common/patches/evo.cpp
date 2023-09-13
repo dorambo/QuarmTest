@@ -1,7 +1,7 @@
 #include "../global_define.h"
 #include "../eqemu_config.h"
 #include "../eqemu_logsys.h"
-#include "Evo.h"
+#include "evo.h"
 #include "../opcodemgr.h"
 #include "../eq_stream_ident.h"
 #include "../crc32.h"
@@ -12,7 +12,7 @@
 #include "../packet_functions.h"
 #include "../strings.h"
 #include "../inventory_profile.h"
-#include "Evo_structs.h"
+#include "evo_structs.h"
 #include "../rulesys.h"
 
 namespace Evo {
@@ -659,7 +659,7 @@ namespace Evo {
 		for(r = 0; r < itemcount; r++, eq++) 
 		{
 			EQ::ItemInstance *cur = (EQ::ItemInstance*)eq->inst;
-			structs::Item_Struct* evo_item = evoitem((EQ::ItemInstance*)eq->inst,eq->slot_id,1);
+			structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)eq->inst,eq->slot_id,1);
 			if(evo_item != 0)
 			{
 				structs::MerchantItemsPacket_Struct* merchant = new structs::MerchantItemsPacket_Struct;
@@ -712,7 +712,7 @@ namespace Evo {
 	
 			if(item)
 			{
-				structs::Item_Struct* evo_item = evoitem((EQ::ItemInstance*)int_struct->inst,int_struct->slot_id);
+				structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)int_struct->inst,int_struct->slot_id);
 
 				if(evo_item == 0)
 				{
@@ -883,7 +883,7 @@ namespace Evo {
 		FINISH_ENCODE();
 	}
 
-	structs::Item_Struct* evoitem(const EQ::ItemInstance *inst, int16 slot_id_in, int type)
+	structs::Item_Struct* EvoItem(const EQ::ItemInstance *inst, int16 slot_id_in, int type)
 	{
 
 		if(!inst)
