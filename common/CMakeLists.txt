@@ -80,6 +80,8 @@ SET(common_sources
 	patches/patches.cpp
 	patches/mac.cpp
 	patches/mac_limits.cpp
+	patches/evo.cpp
+	patches/evo_limits.cpp
 	SocketLib/Base64.cpp
 	SocketLib/File.cpp
 	SocketLib/MemFile.cpp
@@ -428,6 +430,10 @@ SET(common_headers
 	patches/ss_declare.h
 	patches/ss_define.h
 	patches/ss_register.h
+	patches/evo.h
+	patches/evo_limits.h
+	patches/evo_ops.h
+	patches/evo_structs.h
 	SocketLib/Base64.h
 	SocketLib/File.h
 	SocketLib/IFile.h
@@ -464,6 +470,12 @@ SOURCE_GROUP(Patches FILES
 	patches/mac_limits.h
 	patches/mac.cpp
 	patches/mac_limits.cpp
+	patches/evo.h
+	patches/evo_ops.h
+	patches/evo_structs.h
+	patches/evo_limits.h
+	patches/evo.cpp
+	patches/evo_limits.cpp
 )
 
 SOURCE_GROUP(SocketLib FILES
