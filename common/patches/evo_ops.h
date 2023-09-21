@@ -25,6 +25,8 @@ D(OP_ShopPlayerSell)
 E(OP_ShopPlayerSell)
 E(OP_AAAction)
 E(OP_PickPocket);
+D(OP_CharacterCreate)
+E(OP_SendCharInfo)
 
 //Below are invalid opcodes ONLY
 E(OP_Unknown);
