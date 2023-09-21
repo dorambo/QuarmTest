@@ -467,7 +467,7 @@ struct LoginInfo_Struct
 	/*151*/ uint8	unknown189[41];
 	/*192*/ uint8   zoning;
 	/*193*/ uint8   unknown193[3];
-	/*196*/ uint8	unknown[192];
+	/*196*/
 };
 
 struct SpellBuff_Struct
@@ -690,6 +690,76 @@ struct ObjectDisplayOnly_Struct
 	/*0076*/ float heading;
 	/*0080*/ float tilt;
 	/*0084*/ char test4[40];
+};
+
+/*
+** Character Creation struct
+** Length: 140 Bytes
+** OpCode: 0x1301
+*/
+struct CharCreate_Struct
+{
+	/*0000*/	char	name[64];
+	/*0064*/	int32	gender;
+	/*0068*/	int32	race;
+	/*0072*/	int32	class_;
+		// 0 = odus
+		// 1 = qeynos
+		// 2 = halas
+		// 3 = rivervale
+		// 4 = freeport
+		// 5 = neriak
+		// 6 = gukta/grobb
+		// 7 = ogguk
+		// 8 = kaladim
+		// 9 = gfay
+		// 10 = felwithe
+		// 11 = akanon
+		// 12 = cabalis
+		// 13 = shar vahl
+	/*0076*/	int32	start_zone;
+	/*0080*/	int32	deity;
+	/*0084*/	int32	STR;
+	/*0088*/	int32	STA;
+	/*0092*/	int32	AGI;
+	/*0096*/	int32	DEX;
+	/*0100*/	int32	WIS;
+	/*0104*/	int32	INT;
+	/*0108*/	int32	CHA;
+	/*0112*/	int32	face;
+	/*0116*/	int32	hairstyle;
+	/*0120*/	int32	eyecolor1;
+	/*0124*/	int32	eyecolor2;
+	/*0128*/	int32	haircolor;
+	/*0132*/	int32	beard;
+	/*0136*/	int32	beardcolor;
+	/*0140*/
+};
+
+/*
+** Character Selection Struct
+** Length: 1660 Bytes
+*/
+struct CharacterSelect_Struct {
+	/*0000*/	char	name[10][64];			// Characters Names
+	/*0640*/	uint8	level[10];				// Characters Levels
+	/*0650*/	uint8	class_[10];				// Characters Classes
+	/*0660*/	uint32	race[10];				// Characters Race
+	/*0700*/	uint32	zone[10];				// Characters Current Zone
+	/*0740*/	uint8	gender[10];				// Characters Gender
+	/*0750*/	uint8	face[10];				// Characters Face Type
+	/*0760*/	EQ::TextureProfile	equip[10];	// Characters texture array
+	/*1120*/	EQ::TintProfile cs_colors[10];	// Characters Equipment Colors (RR GG BB 00)
+	/*1480*/	uint32	deity[10];				// Characters Deity
+	/*1520*/	uint32	primary[10];			// Characters primary and secondary IDFile number
+	/*1560*/	uint32	secondary[10];			// Characters primary and secondary IDFile number
+	/*1600*/	uint8	haircolor[10];
+	/*1610*/	uint8	beardcolor[10];
+	/*1620*/	uint8	eyecolor1[10];
+	/*1630*/	uint8	eyecolor2[10];
+	/*1640*/	uint8	hairstyle[10];
+	/*1650*/	uint8	beard[10];
+	/*1660*/
 };
 
 	};	//end namespace structs

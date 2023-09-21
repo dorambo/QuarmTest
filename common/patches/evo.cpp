@@ -14,6 +14,7 @@
 #include "../inventory_profile.h"
 #include "evo_structs.h"
 #include "../rulesys.h"
+#include "../eq_constants.h"
 
 namespace Evo {
 
@@ -28,6 +29,7 @@ namespace Evo {
 
 	static inline uint32 EvoToServerSlot(int16 EvoSlot);
 	static inline uint32 EvoToServerCorpseSlot(int16 EvoCorpse);
+	static inline int32 EvoToServerStartZone(int32 EvoStartZone);
 
 	void Register(EQStreamIdentifier &into)
 	{
@@ -56,15 +58,7 @@ namespace Evo {
 
 		signature.ignore_eq_opcode = 0;
 
-		// Intel version's OP_SendLoginInfo is 200 bytes
 		pname = std::string(name) + "_world";
-		//register our world signature.
-		signature.first_length = sizeof(structs::LoginInfo_Struct) + 4;
-		signature.first_eq_opcode = opcodes->EmuToEQ(OP_SendLoginInfo);
-		into.RegisterOldPatch(signature, pname.c_str(), &opcodes, &struct_strategy);
-
-		// PPC version's OP_SendLoginInfo is 196 bytes
-		pname = std::string(name) + "_world_PPC";
 		//register our world signature.
 		signature.first_length = sizeof(structs::LoginInfo_Struct);
 		signature.first_eq_opcode = opcodes->EmuToEQ(OP_SendLoginInfo);
@@ -1118,6 +1112,66 @@ namespace Evo {
 		return;
 	}
 
+	DECODE(OP_CharacterCreate)
+	{
+		DECODE_LENGTH_EXACT(structs::CharCreate_Struct);
+		SETUP_DIRECT_DECODE(CharCreate_Struct, structs::CharCreate_Struct);
+
+		IN(gender);
+		IN(race);
+		IN(class_);
+		// FIXME: more logic is needed. ex: evo start_zone 12 should map cabwest for class 11
+		emu->start_zone = EvoToServerStartZone(eq->start_zone);
+		IN(deity);
+		IN(STR);
+		IN(STA);
+		IN(AGI);
+		IN(DEX);
+		IN(WIS);
+		IN(INT);
+		IN(CHA);
+		IN(face);
+		IN(hairstyle);
+		IN(eyecolor1);
+		IN(eyecolor2);
+		IN(haircolor);
+		IN(beard);
+		IN(beardcolor);
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	ENCODE(OP_SendCharInfo)
+	{
+		ENCODE_LENGTH_EXACT(CharacterSelect_Struct);
+		SETUP_DIRECT_ENCODE(CharacterSelect_Struct, structs::CharacterSelect_Struct);
+
+		int r;
+		for(r = 0; r < 10; r++)
+		{
+			OUT_str(name[r]);
+			OUT(level[r]);
+			OUT(class_[r]);
+			OUT(race[r]);
+			OUT(zone[r]);
+			OUT(gender[r]);
+			OUT(face[r]);
+			OUT(equip[r]);
+			OUT(cs_colors[r]);
+			OUT(deity[r]);
+			OUT(primary[r]);
+			OUT(secondary[r]);
+			OUT(haircolor[r]);
+			OUT(beardcolor[r]);
+			OUT(eyecolor1[r]);
+			OUT(eyecolor2[r]);
+			OUT(hairstyle[r]);
+			OUT(beard[r]);
+		}
+
+		FINISH_ENCODE();
+	}
+
 	static inline int16 ServerToEvoSlot(uint32 ServerSlot)
 	{
 			 //int16 EvoSlot;
@@ -1144,6 +1198,43 @@ namespace Evo {
 	static inline uint32 EvoToServerCorpseSlot(int16 EvoCorpse)
 	{
 		return EvoCorpse;
+	}
+
+	static inline int32 EvoToServerStartZone(int32 EvoStartZone)
+	{
+		switch (EvoStartZone)
+		{
+			case 0:
+				return Zones::erudnext;
+			case 1:
+				return Zones::qeynos2;
+			case 2:
+				return Zones::halas;
+			case 3:
+				return Zones::rivervale;
+			case 4:
+				return Zones::freportw;
+			case 5:
+				return Zones::neriaka;
+			case 6:
+				return Zones::grobb;
+			case 7:
+				return Zones::oggok;
+			case 8:
+				return Zones::kaladima;
+			case 9:
+				return Zones::gfaydark;
+			case 10:
+				return Zones::felwithea;
+			case 11:
+				return Zones::akanon;
+			case 12:
+				return Zones::cabeast;
+			case 13:
+				return Zones::sharvahl;
+		}
+
+		return Zones::qeynos;
 	}
 
 } //end namespace Evo
