@@ -33,7 +33,7 @@ namespace Evo {
 	{
 		auto Config = EQEmuConfig::get();
 		//create our opcode manager if we havent already
-		if(opcodes == nullptr) 
+		if(opcodes == nullptr)
 		{
 			std::string opfile = Config->PatchDir;
 			opfile += "patch_";
@@ -42,7 +42,7 @@ namespace Evo {
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
 			opcodes = new RegularOpcodeManager();
-			if(!opcodes->LoadOpcodes(opfile.c_str())) 
+			if(!opcodes->LoadOpcodes(opfile.c_str()))
 			{
 				Log(Logs::General, Logs::Netcode, "[OPCODES] Error loading opcodes file %s. Not registering patch %s.", opfile.c_str(), name);
 				return;
@@ -75,18 +75,18 @@ namespace Evo {
 		signature.first_length = sizeof(structs::SetDataRate_Struct);
 		signature.first_eq_opcode = opcodes->EmuToEQ(OP_DataRate);
 		into.RegisterOldPatch(signature, pname.c_str(), &opcodes, &struct_strategy);
-		
+
 		Log(Logs::General, Logs::Netcode, "[IDENTIFY] Registered patch %s", name);
 	}
 
-	void Reload() 
+	void Reload()
 	{
 
 		//we have a big problem to solve here when we switch back to shared memory
 		//opcode managers because we need to change the manager pointer, which means
 		//we need to go to every stream and replace it's manager.
 
-		if(opcodes != nullptr) 
+		if(opcodes != nullptr)
 		{
 			//TODO: get this file name from the config file
 			auto Config = EQEmuConfig::get();
@@ -113,7 +113,7 @@ namespace Evo {
 		#include "evo_ops.h"
 	}
 
-	std::string Strategy::Describe() const 
+	std::string Strategy::Describe() const
 	{
 		std::string r;
 		r += "Patch ";
@@ -140,7 +140,7 @@ namespace Evo {
 		FINISH_DIRECT_DECODE();
 	}
 
-	ENCODE(OP_PlayerProfile) 
+	ENCODE(OP_PlayerProfile)
 	{
 		SETUP_DIRECT_ENCODE(PlayerProfile_Struct, structs::PlayerProfile_Struct);
 
@@ -242,11 +242,11 @@ namespace Evo {
 			OUT(aa_array[r].AA);
 			OUT(aa_array[r].value);
 		}
-		for(r = 0; r < 6; r++) 
+		for(r = 0; r < 6; r++)
 		{
 			OUT_str(groupMembers[r]);
 		}
-		for(r = EQ::textures::textureBegin; r <= EQ::textures::LastTexture; r++) 
+		for(r = EQ::textures::textureBegin; r <= EQ::textures::LastTexture; r++)
 		{
 			OUT(item_material.Slot[r].Material);
 		}
@@ -297,7 +297,7 @@ namespace Evo {
 		delete __packet;
 	}
 
-	ENCODE(OP_NewZone) 
+	ENCODE(OP_NewZone)
 	{
 		SETUP_DIRECT_ENCODE(NewZone_Struct, structs::NewZone_Struct);
 		OUT_str(char_name);
@@ -330,24 +330,24 @@ namespace Evo {
 		OUT(normal_music_day);
 		OUT(water_music);
 		OUT(normal_music_night);
-		FINISH_ENCODE();	
+		FINISH_ENCODE();
 	}
 
 	ENCODE(OP_SpecialMesg)
 	{
-		EQApplicationPacket *__packet = *p; 
-		*p = nullptr; 
-		unsigned char *__emu_buffer = __packet->pBuffer; 
-		SpecialMesg_Struct *emu = (SpecialMesg_Struct *) __emu_buffer; 
-		uint32 __i = 0; 
+		EQApplicationPacket *__packet = *p;
+		*p = nullptr;
+		unsigned char *__emu_buffer = __packet->pBuffer;
+		SpecialMesg_Struct *emu = (SpecialMesg_Struct *) __emu_buffer;
+		uint32 __i = 0;
 		__i++; /* to shut up compiler */
-	
+
 		int msglen = __packet->size - sizeof(structs::SpecialMesg_Struct);
 		int len = sizeof(structs::SpecialMesg_Struct) + msglen + 1;
-		__packet->pBuffer = new unsigned char[len]; 
-		__packet->size = len; 
-		memset(__packet->pBuffer, 0, len); 
-		structs::SpecialMesg_Struct *eq = (structs::SpecialMesg_Struct *) __packet->pBuffer; 
+		__packet->pBuffer = new unsigned char[len];
+		__packet->size = len;
+		memset(__packet->pBuffer, 0, len);
+		structs::SpecialMesg_Struct *eq = (structs::SpecialMesg_Struct *) __packet->pBuffer;
 		eq->msg_type = emu->msg_type;
 		strcpy(eq->message, emu->message);
 		FINISH_ENCODE();
@@ -368,7 +368,7 @@ namespace Evo {
 
 		//determine and verify length
 		int entrycount = in->size / sizeof(Spawn_Struct);
-		if(entrycount == 0 || (in->size % sizeof(Spawn_Struct)) != 0) 
+		if(entrycount == 0 || (in->size % sizeof(Spawn_Struct)) != 0)
 		{
 			Log(Logs::General, Logs::Netcode, "[STRUCTS] Wrong size on outbound %s: Got %d, expected multiple of %d", opcodes->EmuToName(in->GetOpcode()), in->size, sizeof(Spawn_Struct));
 			delete in;
@@ -385,7 +385,7 @@ namespace Evo {
 		memset(out->pBuffer, 0, out->size);
 
 		//do the transform...
-		for(int r = 0; r < entrycount; r++, eq++, emu++) 
+		for(int r = 0; r < entrycount; r++, eq++, emu++)
 		{
 
 			eq->GM = emu->gm;
@@ -475,7 +475,7 @@ namespace Evo {
 	}
 
 	ENCODE(OP_ItemLinkResponse) {  ENCODE_FORWARD(OP_ItemPacket); }
-	ENCODE(OP_ItemPacket) 
+	ENCODE(OP_ItemPacket)
 	{
 		//consume the packet
 		EQApplicationPacket *in = *p;
@@ -487,7 +487,7 @@ namespace Evo {
 		EQ::InternalSerializedItem_Struct *int_struct=(EQ::InternalSerializedItem_Struct *)(old_item_pkt->SerializedItem);
 
 		const EQ::ItemInstance * item = (const EQ::ItemInstance *)int_struct->inst;
-	
+
 		if(item)
 		{
 			uint8 type = 0;
@@ -505,7 +505,7 @@ namespace Evo {
 			auto outapp = new EQApplicationPacket(OP_ItemPacket,sizeof(structs::Item_Struct));
 			memcpy(outapp->pBuffer,evo_item,sizeof(structs::Item_Struct));
 			outapp->SetOpcode(OP_Unknown);
-		
+
 			if(old_item_pkt->PacketType == ItemPacketSummonItem)
 				outapp->SetOpcode(OP_SummonedItem);
 			else if(old_item_pkt->PacketType == ItemPacketViewLink)
@@ -546,7 +546,7 @@ namespace Evo {
 		EQ::InternalSerializedItem_Struct *int_struct=(EQ::InternalSerializedItem_Struct *)(old_item_pkt->SerializedItem);
 
 		const EQ::ItemInstance * item = (const EQ::ItemInstance *)int_struct->inst;
-	
+
 		if(item)
 		{
 			structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)int_struct->inst,int_struct->slot_id);
@@ -593,13 +593,13 @@ namespace Evo {
 			delete in;
 			return;
 		}
-		
+
 		EQ::InternalSerializedItem_Struct *eq = (EQ::InternalSerializedItem_Struct *) in->pBuffer;
 		//do the transform...
 		std::string evo_item_string;
 		int r;
 		//std::string evo_item_string;
-		for(r = 0; r < itemcount; r++, eq++) 
+		for(r = 0; r < itemcount; r++, eq++)
 		{
 			structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)eq->inst,eq->slot_id);
 
@@ -619,7 +619,7 @@ namespace Evo {
 				evo_item_string.append(evo_item_char,sizeof(structs::PlayerItemsPacket_Struct));
 
 				safe_delete(evoitem);
-				safe_delete(evo_item);	
+				safe_delete(evo_item);
 			}
 		}
 		int buffer = 2;
@@ -627,7 +627,7 @@ namespace Evo {
 		auto outapp = new EQApplicationPacket(OP_CharInventory, 16384);
 		outapp->size = buffer + DeflatePacket((uchar*)evo_item_string.c_str(), evo_item_string.length(), &outapp->pBuffer[buffer], 16382);
 		outapp->pBuffer[0] = itemcount;
-		
+
 		dest->FastQueuePacket(&outapp);
 		delete in;
 	}
@@ -656,7 +656,7 @@ namespace Evo {
 		//do the transform...
 		std::string evo_item_string;
 		int r = 0;
-		for(r = 0; r < itemcount; r++, eq++) 
+		for(r = 0; r < itemcount; r++, eq++)
 		{
 			EQ::ItemInstance *cur = (EQ::ItemInstance*)eq->inst;
 			structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)eq->inst,eq->slot_id,1);
@@ -684,7 +684,7 @@ namespace Evo {
 		delete in;
 	}
 
-	ENCODE(OP_PickPocket) 
+	ENCODE(OP_PickPocket)
 	{
 		if((*p)->size == sizeof(PickPocket_Struct))
 		{
@@ -697,7 +697,7 @@ namespace Evo {
 			OUT(coin);
 			FINISH_ENCODE();
 		}
-		else 
+		else
 		{
 			//consume the packet
 			EQApplicationPacket *in = *p;
@@ -709,7 +709,7 @@ namespace Evo {
 			EQ::InternalSerializedItem_Struct *int_struct=(EQ::InternalSerializedItem_Struct *)(old_item_pkt->SerializedItem);
 
 			const EQ::ItemInstance * item = (const EQ::ItemInstance *)int_struct->inst;
-	
+
 			if(item)
 			{
 				structs::Item_Struct* evo_item = EvoItem((EQ::ItemInstance*)int_struct->inst,int_struct->slot_id);
@@ -798,7 +798,7 @@ namespace Evo {
 		FINISH_ENCODE();
 	}
 
-	DECODE(OP_ShopRequest) 
+	DECODE(OP_ShopRequest)
 	{
 		DECODE_LENGTH_EXACT(structs::Merchant_Click_Struct);
 		SETUP_DIRECT_DECODE(Merchant_Click_Struct, structs::Merchant_Click_Struct);
@@ -907,17 +907,17 @@ namespace Evo {
 			evo_pop_item->Charges = inst->GetCharges();
   			evo_pop_item->equipSlot = ServerToEvoSlot(slot_id_in);
 			if(item->NoDrop == 0)
-				evo_pop_item->Price = 0; 
+				evo_pop_item->Price = 0;
 			else
 				evo_pop_item->Price = item->Price;
 			evo_pop_item->SellRate = item->SellRate;
   		}
 		// Items on a merchant
   		else if(type == 1)
-  		{ 
+  		{
   			evo_pop_item->Charges = inst->GetCharges();
   			evo_pop_item->equipSlot = inst->GetMerchantSlot();
-			evo_pop_item->Price = inst->GetPrice();  //This handles sellrate, faction, cha, and vendor greed for us. 
+			evo_pop_item->Price = inst->GetPrice();  //This handles sellrate, faction, cha, and vendor greed for us.
 			evo_pop_item->SellRate = 1;
 		}
 		// Item links
@@ -928,29 +928,29 @@ namespace Evo {
 			evo_pop_item->Price = item->Price;
 			evo_pop_item->SellRate = item->SellRate;
 		}
-  
+
 			evo_pop_item->ItemClass = item->ItemClass;
 			strcpy(evo_pop_item->Name,item->Name);
-			strcpy(evo_pop_item->Lore,item->Lore);       
-			strcpy(evo_pop_item->IDFile,item->IDFile);  
-			evo_pop_item->Weight = item->Weight;      
-			evo_pop_item->NoRent = item->NoRent;         
-			evo_pop_item->NoDrop = item->NoDrop;         
-			evo_pop_item->Size = item->Size;           
-			evo_pop_item->ID = item->ID;       
+			strcpy(evo_pop_item->Lore,item->Lore);
+			strcpy(evo_pop_item->IDFile,item->IDFile);
+			evo_pop_item->Weight = item->Weight;
+			evo_pop_item->NoRent = item->NoRent;
+			evo_pop_item->NoDrop = item->NoDrop;
+			evo_pop_item->Size = item->Size;
+			evo_pop_item->ID = item->ID;
 			evo_pop_item->inv_refnum = serial;
-			evo_pop_item->Icon = item->Icon;       
-			evo_pop_item->Slots = item->Slots;  
-			evo_pop_item->CastTime = item->CastTime;  
+			evo_pop_item->Icon = item->Icon;
+			evo_pop_item->Slots = item->Slots;
+			evo_pop_item->CastTime = item->CastTime;
 			evo_pop_item->SkillModType = item->SkillModType;
 			evo_pop_item->SkillModValue = item->SkillModValue;
 			evo_pop_item->BaneDmgRace = item->BaneDmgRace;
 			evo_pop_item->BaneDmgBody = item->BaneDmgBody;
 			evo_pop_item->BaneDmgAmt = item->BaneDmgAmt;
-			evo_pop_item->RecLevel = item->RecLevel;       
-			evo_pop_item->RecSkill = item->RecSkill;   
-			evo_pop_item->ProcRate = item->ProcRate; 
-			evo_pop_item->ElemDmgType = item->ElemDmgType; 
+			evo_pop_item->RecLevel = item->RecLevel;
+			evo_pop_item->RecSkill = item->RecSkill;
+			evo_pop_item->ProcRate = item->ProcRate;
+			evo_pop_item->ElemDmgType = item->ElemDmgType;
 			evo_pop_item->ElemDmgAmt = item->ElemDmgAmt;
 			evo_pop_item->FactionMod1 = item->FactionMod1;
 			evo_pop_item->FactionMod2 = item->FactionMod2;
@@ -961,7 +961,7 @@ namespace Evo {
 			evo_pop_item->FactionAmt3 = item->FactionAmt3;
 			evo_pop_item->FactionAmt4 = item->FactionAmt4;
 			evo_pop_item->Deity = item->Deity;
-			evo_pop_item->ReqLevel = item->ReqLevel; 
+			evo_pop_item->ReqLevel = item->ReqLevel;
 			evo_pop_item->BardType = item->BardType;
 			evo_pop_item->BardValue = item->BardValue;
 
@@ -972,55 +972,55 @@ namespace Evo {
 				evo_pop_item->FocusEffect = 0;
 			else
 				evo_pop_item->FocusEffect = item->Focus.Effect;
-			
+
 			if(item->ItemClass == 1)
 			{
-				evo_pop_item->container.BagType = item->BagType; 
-				evo_pop_item->container.BagSlots = item->BagSlots;         
-				evo_pop_item->container.BagSize = item->BagSize;    
-				evo_pop_item->container.BagWR = item->BagWR; 
+				evo_pop_item->container.BagType = item->BagType;
+				evo_pop_item->container.BagSlots = item->BagSlots;
+				evo_pop_item->container.BagSize = item->BagSize;
+				evo_pop_item->container.BagWR = item->BagWR;
 				evo_pop_item->container.IsBagOpen = 0;
 			}
 			else if(item->ItemClass == 2)
 			{
 				strcpy(evo_pop_item->book.Filename,item->Filename);
-				evo_pop_item->book.Book = item->Book;         
-				evo_pop_item->book.BookType = item->BookType; 
+				evo_pop_item->book.Book = item->Book;
+				evo_pop_item->book.BookType = item->BookType;
 			}
 			else
 			{
-			evo_pop_item->common.AStr = item->AStr;           
-			evo_pop_item->common.ASta = item->ASta;           
-			evo_pop_item->common.ACha = item->ACha;           
-			evo_pop_item->common.ADex = item->ADex;           
-			evo_pop_item->common.AInt = item->AInt;           
-			evo_pop_item->common.AAgi = item->AAgi;           
-			evo_pop_item->common.AWis = item->AWis;           
-			evo_pop_item->common.MR = item->MR;             
-			evo_pop_item->common.FR = item->FR;             
-			evo_pop_item->common.CR = item->CR;             
-			evo_pop_item->common.DR = item->DR;             
-			evo_pop_item->common.PR = item->PR;             
-			evo_pop_item->common.HP = item->HP;             
-			evo_pop_item->common.Mana = item->Mana;           
-			evo_pop_item->common.AC = item->AC;		
-			evo_pop_item->common.MaxCharges = item->MaxCharges;    
+			evo_pop_item->common.AStr = item->AStr;
+			evo_pop_item->common.ASta = item->ASta;
+			evo_pop_item->common.ACha = item->ACha;
+			evo_pop_item->common.ADex = item->ADex;
+			evo_pop_item->common.AInt = item->AInt;
+			evo_pop_item->common.AAgi = item->AAgi;
+			evo_pop_item->common.AWis = item->AWis;
+			evo_pop_item->common.MR = item->MR;
+			evo_pop_item->common.FR = item->FR;
+			evo_pop_item->common.CR = item->CR;
+			evo_pop_item->common.DR = item->DR;
+			evo_pop_item->common.PR = item->PR;
+			evo_pop_item->common.HP = item->HP;
+			evo_pop_item->common.Mana = item->Mana;
+			evo_pop_item->common.AC = item->AC;
+			evo_pop_item->common.MaxCharges = item->MaxCharges;
 			evo_pop_item->common.GMFlag = item->GMFlag;
-			evo_pop_item->common.Light = item->Light;          
-			evo_pop_item->common.Delay = item->Delay;          
-			evo_pop_item->common.Damage = item->Damage;               
+			evo_pop_item->common.Light = item->Light;
+			evo_pop_item->common.Delay = item->Delay;
+			evo_pop_item->common.Damage = item->Damage;
 			evo_pop_item->common.Range = item->Range;
 			if (item->ItemType == 7) // Throwing
 				evo_pop_item->common.ItemType = 19; // casting throwing items to fixed stacking issue.
 			else
-				evo_pop_item->common.ItemType = item->ItemType;          
-			evo_pop_item->common.Magic = item->Magic;          
-			evo_pop_item->common.Material = item->Material;   
-			evo_pop_item->common.Color = item->Color;    
-			//evo_pop_item->common.Faction = item->Faction;   
-			evo_pop_item->common.Classes = item->Classes;  
-			evo_pop_item->common.Races = item->Races;  
-			evo_pop_item->common.Stackable = item->Stackable_; 
+				evo_pop_item->common.ItemType = item->ItemType;
+			evo_pop_item->common.Magic = item->Magic;
+			evo_pop_item->common.Material = item->Material;
+			evo_pop_item->common.Color = item->Color;
+			//evo_pop_item->common.Faction = item->Faction;
+			evo_pop_item->common.Classes = item->Classes;
+			evo_pop_item->common.Races = item->Races;
+			evo_pop_item->common.Stackable = item->Stackable_;
 			}
 
 			//FocusEffect and BardEffect is already handled above. Now figure out click, scroll, proc, and worn.
@@ -1028,78 +1028,78 @@ namespace Evo {
 			if(item->Click.Effect > 0)
 			{
 				evo_pop_item->common.Effect1 = item->Click.Effect;
-				evo_pop_item->Effect2 = item->Click.Effect; 
-				evo_pop_item->EffectType2 = item->Click.Type;  
+				evo_pop_item->Effect2 = item->Click.Effect;
+				evo_pop_item->EffectType2 = item->Click.Type;
 				evo_pop_item->common.EffectType1 = item->Click.Type;
 				if(item->Click.Level > 0)
 				{
-					evo_pop_item->common.EffectLevel1 = item->Click.Level; 
+					evo_pop_item->common.EffectLevel1 = item->Click.Level;
 					evo_pop_item->EffectLevel2 = item->Click.Level;
 				}
 				else
 				{
-					evo_pop_item->common.EffectLevel1 = item->Click.Level2; 
-					evo_pop_item->EffectLevel2 = item->Click.Level2;  
+					evo_pop_item->common.EffectLevel1 = item->Click.Level2;
+					evo_pop_item->EffectLevel2 = item->Click.Level2;
 				}
 			}
 			else if(item->Scroll.Effect > 0)
 			{
 				evo_pop_item->common.Effect1 = item->Scroll.Effect;
-				evo_pop_item->Effect2 = item->Scroll.Effect; 
-				evo_pop_item->EffectType2 = item->Scroll.Type;  
+				evo_pop_item->Effect2 = item->Scroll.Effect;
+				evo_pop_item->EffectType2 = item->Scroll.Type;
 				evo_pop_item->common.EffectType1 = item->Scroll.Type;
 				if(item->Scroll.Level > 0)
 				{
-					evo_pop_item->common.EffectLevel1 = item->Scroll.Level; 
+					evo_pop_item->common.EffectLevel1 = item->Scroll.Level;
 					evo_pop_item->EffectLevel2 = item->Scroll.Level;
 				}
 				else
 				{
-					evo_pop_item->common.EffectLevel1 = item->Scroll.Level2; 
-					evo_pop_item->EffectLevel2 = item->Scroll.Level2;  
+					evo_pop_item->common.EffectLevel1 = item->Scroll.Level2;
+					evo_pop_item->EffectLevel2 = item->Scroll.Level2;
 				}
 			}
 			//We have some worn effect items (Lodizal Shell Shield) as proceffect in db.
 			else if(item->Proc.Effect > 0)
 			{
 				evo_pop_item->common.Effect1 = item->Proc.Effect;
-				evo_pop_item->Effect2 = item->Proc.Effect; 
+				evo_pop_item->Effect2 = item->Proc.Effect;
 				if(item->Worn.Type > 0)
 				{
-					evo_pop_item->EffectType2 = item->Worn.Type;  
+					evo_pop_item->EffectType2 = item->Worn.Type;
 					evo_pop_item->common.EffectType1 = item->Worn.Type;
 				}
 				else
 				{
-					evo_pop_item->EffectType2 = item->Proc.Type;  
+					evo_pop_item->EffectType2 = item->Proc.Type;
 					evo_pop_item->common.EffectType1 = item->Proc.Type;
 				}
 				if(item->Proc.Level > 0)
 				{
-					evo_pop_item->common.EffectLevel1 = item->Proc.Level; 
+					evo_pop_item->common.EffectLevel1 = item->Proc.Level;
 					evo_pop_item->EffectLevel2 = item->Proc.Level;
 				}
 				else
 				{
-					evo_pop_item->common.EffectLevel1 = item->Proc.Level2; 
-					evo_pop_item->EffectLevel2 = item->Proc.Level2;  
+					evo_pop_item->common.EffectLevel1 = item->Proc.Level2;
+					evo_pop_item->EffectLevel2 = item->Proc.Level2;
 				}
 			}
 			else if(item->Worn.Effect > 0)
 			{
 				evo_pop_item->common.Effect1 = item->Worn.Effect;
-				evo_pop_item->Effect2 = item->Worn.Effect; 
-				evo_pop_item->EffectType2 = item->Worn.Type;  
+				evo_pop_item->Effect2 = item->Worn.Effect;
+				evo_pop_item->EffectType2 = item->Worn.Type;
 				evo_pop_item->common.EffectType1 = item->Worn.Type;
 				if(item->Worn.Level > 0)
 				{
-					evo_pop_item->common.EffectLevel1 = item->Worn.Level; 
+					evo_pop_item->common.EffectLevel1 = item->Worn.Level;
 					evo_pop_item->EffectLevel2 = item->Worn.Level;
 				}
 				else
 				{
-					evo_pop_item->common.EffectLevel1 = item->Worn.Level2; 
-					evo_pop_item->EffectLevel2 = item->Worn.Level2;  
+					evo_pop_item->common.EffectLevel1 = item->Worn.Level2;
+					evo_pop_item->EffectLevel2 = item->Worn.Level2;
 				}
 			}
 
@@ -1123,7 +1123,7 @@ namespace Evo {
 			 //int16 EvoSlot;
 			if (ServerSlot == INVALID_INDEX)
 				 return INVALID_INDEX;
-			
+
 			return ServerSlot; // deprecated
 	}
 
@@ -1137,7 +1137,7 @@ namespace Evo {
 		//uint32 ServerSlot;
 		if (EvoSlot == INVALID_INDEX)
 			 return INVALID_INDEX;
-		
+
 		return EvoSlot; // deprecated
 	}
 

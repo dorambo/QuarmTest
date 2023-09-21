@@ -75,7 +75,7 @@ struct TintProfile {
 	};
 };
 
-struct NewZone_Struct 
+struct NewZone_Struct
 {
 	/*0000*/	char	char_name[64];			// Character Name
 	/*0064*/	char	zone_short_name[32];	// Zone Short Name
@@ -86,7 +86,7 @@ struct NewZone_Struct
 	/*0383*/	uint8	fog_blue[4];			// Blue Fog 0-255 repeated over 4 bytes (confirmed)
 	/*0387*/	uint8	unknown387;
 	/*0388*/	float	fog_minclip[4];			// Where the fog begins (lowest clip setting). Repeated over 4 floats. (confirmed)
-	/*0404*/	float	fog_maxclip[4];			// Where the fog ends (highest clip setting). Repeated over 4 floats. (confirmed)	
+	/*0404*/	float	fog_maxclip[4];			// Where the fog ends (highest clip setting). Repeated over 4 floats. (confirmed)
 	/*0420*/	float	gravity;
 	/*0424*/	uint8	time_type;
 	/*0425*/    uint8   rain_chance[4];
@@ -143,11 +143,11 @@ struct Spawn_Struct
 	/*0017*/	uint8	void1;
 	/*0018*/	uint16	petOwnerId;		// Id of pet owner (0 if not a pet)
 	/*0020*/	uint8	animation;
-	/*0021*/    uint8	haircolor; 
-	/*0022*/	uint8	beardcolor;	
-	/*0023*/	uint8	eyecolor1; 
-	/*0024*/	uint8	eyecolor2; 
-	/*0025*/	uint8	hairstyle; 
+	/*0021*/    uint8	haircolor;
+	/*0022*/	uint8	beardcolor;
+	/*0023*/	uint8	eyecolor1;
+	/*0024*/	uint8	eyecolor2;
+	/*0025*/	uint8	hairstyle;
 	/*0026*/	uint8	beard;
 	/*0027*/    uint8   title; //0xff
 	/*0028*/	float	size;
@@ -173,17 +173,17 @@ struct Spawn_Struct
 	/*0097*/	int8	summoned_pc;
 	/*0098*/	int8	LD;					// 0=NotLD, 1=LD
 	/*0099*/	int8	GM;					// 0=NotGM, 1=GM
-	/*0100*/	int8	flymode;				
+	/*0100*/	int8	flymode;
 	/*0101*/	int8	bodytexture;
-	/*0102*/	int8	helm; 
-	/*0103*/	uint8	face;		
+	/*0102*/	int8	helm;
+	/*0103*/	uint8	face;
 	/*0104*/	uint16	equipment[9];		// Equipment worn: 0=helm, 1=chest, 2=arm, 3=bracer, 4=hand, 5=leg, 6=boot, 7=melee1, 8=melee2
 	/*0122*/	int16	guildrank;			// ***Placeholder
 	/*0124*/	int16	deity;				// Deity.
-	/*0126*/	int8	temporaryPet;			
+	/*0126*/	int8	temporaryPet;
 	/*0127*/	char	name[64];			// Name of spawn (len is 30 or less)
 	/*0191*/	char	Surname[32];		// Last Name of player
-	/*0223*/	uint8	void_;		
+	/*0223*/	uint8	void_;
 	/*0224*/
 };
 
@@ -204,7 +204,7 @@ struct SpawnHPUpdate_Struct
 	/*000*/ uint32  spawn_id;		// Comment: Id of spawn to update
 	/*004*/ int32 cur_hp;		// Comment:  Current hp of spawn
 	/*008*/ int32 max_hp;		// Comment: Maximum hp of spawn
-	/*012*/	
+	/*012*/
 };
 
 struct SpecialMesg_Struct
@@ -237,7 +237,7 @@ struct Item_Struct
 	/*0204*/ float		cur_z;
 	/*0208*/ float		heading;
 	/*0212*/ uint32		inv_refnum;			// Unique serial. This is required by apply poison.
-	/*0216*/ int16		log; 
+	/*0216*/ int16		log;
 	/*0218*/ int16		loot_log;
 	/*0220*/ int16		avatar_level;		//Usually 01, sometimes seen as FFFF, once as 0.
 	/*0222*/ int16		bottom_feed;
@@ -278,8 +278,8 @@ struct Item_Struct
 			/*0266*/ int16		Effect1;			// SpellID of special effect
 			/*0268*/ int32		Classes;			// Classes that can use this item
 			/*0272*/ int32		Races;				// Races that can use this item
-			/*0276*/ int8		Stackable;			//  1= stackable, 3 = normal, 0 = ? (not stackable)			
-		} common; 
+			/*0276*/ int8		Stackable;			//  1= stackable, 3 = normal, 0 = ? (not stackable)
+		} common;
 		struct
 		{
 			/*0228*/ int16		BookType;			// Type of book (scroll, note, etc)
@@ -318,8 +318,8 @@ struct Item_Struct
 	/*0322*/ uint16		title;
 	/*0324*/ uint8		RecLevel;					// max should be 65
 	/*0325*/ uint8		RecSkill;					// Max should be 252
-	/*0326*/ int16		ProcRate; 
-	/*0328*/ uint8		ElemDmgType; 
+	/*0326*/ int16		ProcRate;
+	/*0328*/ uint8		ElemDmgType;
 	/*0329*/ uint8		ElemDmgAmt;
 	/*0330*/ int16		FactionMod1;
 	/*0332*/ int16		FactionMod2;
@@ -335,7 +335,7 @@ struct Item_Struct
 	/*0354*/ int16		BardType;
 	/*0356*/ int16		BardValue;
 	/*0358*/ int16		FocusEffect;				//Confirmed
-	/*0360*/	
+	/*0360*/
 };
 
 struct PlayerItemsPacket_Struct
@@ -344,13 +344,13 @@ struct PlayerItemsPacket_Struct
 	/*002*/	struct Item_Struct	item;
 };
 
-struct PlayerItems_Struct 
+struct PlayerItems_Struct
 {
 	/*000*/	int16		count;
 	/*002*/	struct PlayerItemsPacket_Struct	packets[0];
 };
 
-struct MerchantItemsPacket_Struct 
+struct MerchantItemsPacket_Struct
 {
 	/*000*/	uint16 itemtype;
 	/*002*/	struct Item_Struct	item;
@@ -363,10 +363,10 @@ struct TradeItemsPacket_Struct
 	/*004*/	uint8  unknown;
 	/*005*/	struct Item_Struct	item;
 	/*000*/	uint8 unknown1[5];
-	/*000*/	
+	/*000*/
 };
 
-struct PickPocket_Struct 
+struct PickPocket_Struct
 {
 // Size 18
     uint16 to;
@@ -377,7 +377,7 @@ struct PickPocket_Struct
     uint8 data[6];
 };
 
-struct PickPocketItemPacket_Struct 
+struct PickPocketItemPacket_Struct
 {
     uint16 to;
     uint16 from;
@@ -389,35 +389,35 @@ struct PickPocketItemPacket_Struct
 
 struct MerchantItems_Struct
 {
-	/*000*/	int16		count;	
+	/*000*/	int16		count;
 	/*002*/	struct MerchantItemsPacket_Struct packets[0];
 };
 
 struct MoveItem_Struct
 {
-	/*000*/ uint32 from_slot; 
+	/*000*/ uint32 from_slot;
 	/*004*/ uint32 to_slot;
 	/*008*/ uint32 number_in_stack;
-	/*012*/	
+	/*012*/
 };
 
-struct CancelTrade_Struct 
-{ 
+struct CancelTrade_Struct
+{
 	/*000*/	uint16 fromid;
 	/*002*/	uint16 action;
-	/*004*/	
+	/*004*/
 };
 
-struct Merchant_Click_Struct 
+struct Merchant_Click_Struct
 {
 	/*000*/ uint16	npcid;			// Merchant NPC's entity id
 	/*002*/ uint16	playerid;
 	/*004*/	uint8  command;
 	/*005*/ uint8	unknown[3];
 	/*008*/ float   rate;
-	/*012*/	
+	/*012*/
 };
-	
+
 struct Merchant_Sell_Struct
 {
 	/*000*/	uint16	npcid;			// Merchant NPC's entity id
@@ -428,7 +428,7 @@ struct Merchant_Sell_Struct
 	/*008*/	uint8	quantity;	// Qty - when used in Merchant_Purchase_Struct
 	/*009*/	uint8	unknown004[3];
 	/*012*/	uint32	price;
-	/*016*/	
+	/*016*/
 };
 
 struct Merchant_Purchase_Struct
@@ -439,7 +439,7 @@ struct Merchant_Purchase_Struct
 	/*006*/ uint16  price;
 	/*008*/	uint8	quantity;
 	/*009*/ uint8   unknown_void[7];
-	/*016*/	
+	/*016*/
 };
 
 struct Merchant_DelItem_Struct
@@ -448,23 +448,23 @@ struct Merchant_DelItem_Struct
 	/*002*/	uint16	playerid;		// Player's entity id
 	/*004*/	uint8	itemslot;       // Slot of the item you want to remove
 	/*005*/	uint8	type;     // 0x40
-	/*006*/	
+	/*006*/
 };
 
-struct SetDataRate_Struct 
+struct SetDataRate_Struct
 {
-	/*000*/	float newdatarate;	// Comment: 
-	/*004*/	
+	/*000*/	float newdatarate;	// Comment:
+	/*004*/
 };
 
 // Added this struct for eqemu and started eimplimentation ProcessOP_SendLoginInfo
 //TODO: confirm everything in this struct
 // PPC Mac version of this is 196 bytes, Intel Mac version is 200 bytes
-struct LoginInfo_Struct 
+struct LoginInfo_Struct
 {
 	/*000*/	char	AccountName[127];
 	/*127*/	char	Password[24];
-	/*151*/ uint8	unknown189[41];		
+	/*151*/ uint8	unknown189[41];
 	/*192*/ uint8   zoning;
 	/*193*/ uint8   unknown193[3];
 	/*196*/ uint8	unknown[192];
@@ -526,7 +526,7 @@ struct PlayerProfile_Struct
 	/*0156*/	int16	points;				// Players Points
 	/*0158*/	int16	mana;				// Player Mana
 	/*0160*/	int16	cur_hp;				// Player Health
-	/*0162*/	uint16	status;				
+	/*0162*/	uint16	status;
 	/*0164*/	int16	STR;				// Player Strength
 	/*0166*/	int16	STA;				// Player Stamina
 	/*0168*/	int16	CHA;				// Player Charisma
@@ -541,7 +541,7 @@ struct PlayerProfile_Struct
 	/*0284*/	uint8	languages[32];		// Player Languages - space for 32 but only the first 25 are used
 	/*0316*/	struct	ItemProperties_Struct	invItemProperties[pp_inventory_size];	// These correlate with inventory[30]
 	/*0616*/	struct	SpellBuff_Struct	buffs[15];	// Player Buffs Currently On
-	/*0766*/	int16	containerinv[pp_containerinv_size];	
+	/*0766*/	int16	containerinv[pp_containerinv_size];
 	/*0926*/	int16   cursorbaginventory[pp_cursorbaginventory_size]; // If a bag is in slot 0, this is where the bag's items are
 	/*0946*/	struct	ItemProperties_Struct	bagItemProperties[pp_containerinv_size];	// Just like InvItemProperties
 	/*1746*/    struct  ItemProperties_Struct	cursorItemProperties[pp_cursorbaginventory_size];	  //just like invitemprops[]
@@ -587,7 +587,7 @@ struct PlayerProfile_Struct
 	/*3424*/	uint8	unknown3424[20];
 	/*3444*/	uint32	zone_id;
 	/*3448*/	uint8	unknown3448[336];	// On AK, there was a lot of data here in the packet the client sent for OP_Save, but none in the encoded packet the server sent at zone in.
-	/*3784*/	uint32	bind_point_zone[5];	
+	/*3784*/	uint32	bind_point_zone[5];
 	/*3804*/	float	bind_y[5];
 	/*3824*/	float	bind_x[5];
 	/*3844*/	float	bind_z[5];
@@ -606,7 +606,7 @@ struct PlayerProfile_Struct
 	/*4961*/    int8    hunger_level_unused;
 	/*4962*/	int8   fatigue;
 	/*4963*/	uint8	pvp;				// Player PVP Flag
-	/*4964*/	uint8	level2;	
+	/*4964*/	uint8	level2;
 	/*4965*/	uint8	anon;				// Player Anon. Flag
 	/*4966*/	uint8	gm;					// Player GM Flag
 	/*4967*/	uint8	guildrank;			// Player Guild Rank (0=member, 1=officer, 2=leader)
@@ -617,7 +617,7 @@ struct PlayerProfile_Struct
 	/*5004*/	uint32	unknown5003;
 	/*5008*/	uint32	abilitySlotRefresh;
 	/*5012*/	char	groupMembers[6][64];	// Group Members
-	/*5396*/	uint8	unknown5396[20];	
+	/*5396*/	uint8	unknown5396[20];
 	/*5416*/	uint32	groupdat;
 	/*5420*/	uint32	expAA;				// Post60Exp
 	/*5424*/    uint8	title;
@@ -663,7 +663,7 @@ struct UseAA_Struct
 {
 	/*000*/ int32 begin;
 	/*004*/ int16 ability; // skill_id of a purchased AA.
-	/*006*/ int16  unknown_void; 
+	/*006*/ int16  unknown_void;
 	/*008*/ int32 end;
 	/*012*/
 
@@ -673,21 +673,21 @@ struct UseAA_Struct
 
 //           No idea what this is used for, but it creates a
 //           perminent object that no client may interact with.
-//			 It also accepts spell sprites (i.e., GENC00), but 
-//			 they do not currently display. I guess we could use 
+//			 It also accepts spell sprites (i.e., GENC00), but
+//			 they do not currently display. I guess we could use
 //			 this for GM events?
 //
 //Opcode: 0xF640 MSG_ADD_OBJECT
 struct ObjectDisplayOnly_Struct
 {
 	/*0000*/ char test1[32];
-	/*0032*/ char modelName[16];	
+	/*0032*/ char modelName[16];
 	/*0048*/ char test2[12];
-	/*0060*/ float size;			
-	/*0064*/ float y;				
-	/*0068*/ float x;				
-	/*0072*/ float z;				
-	/*0076*/ float heading;			
+	/*0060*/ float size;
+	/*0064*/ float y;
+	/*0068*/ float x;
+	/*0072*/ float z;
+	/*0076*/ float heading;
 	/*0080*/ float tilt;
 	/*0084*/ char test4[40];
 };
