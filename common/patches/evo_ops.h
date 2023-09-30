@@ -27,6 +27,15 @@ E(OP_AAAction)
 E(OP_PickPocket);
 D(OP_CharacterCreate)
 E(OP_SendCharInfo)
+E(OP_ZoneEntry)
+D(OP_ChannelMessage)
+E(OP_ChannelMessage)
+D(OP_ClientUpdate)
+D(OP_TargetMouse)
+D(OP_Animation)
+E(OP_Animation)
+D(OP_WearChange)
+E(OP_WearChange)
 
 //Below are invalid opcodes ONLY
 E(OP_Unknown);

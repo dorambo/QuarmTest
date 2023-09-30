@@ -5,7 +5,7 @@
 #include "../emu_versions.h"
 #include "../skills.h"
 
-namespace Evo 
+namespace Evo
 {
 	const int16 IINVALID = -1;
 	const int16 INULL = 0;
@@ -62,10 +62,10 @@ namespace Evo
 		bool IsInvTypePersistent(int16 inv_type);
 
 	} /*invtype*/
-	
+
 	namespace invslot {
 		inline EQ::versions::ClientVersion GetInvSlotRef() { return EQ::versions::ClientVersion::Evo; }
-			
+
 		namespace enum_ {
 			enum InventorySlots : int16 {
 				slotCursor = INULL,
@@ -237,7 +237,7 @@ namespace Evo
 		};
 
 		const int SPELL_ID_MAX = 4000;
-		const int SPELLBOOK_SIZE = 256;
+		const int SPELLBOOK_SIZE = 400;
 		const int SPELL_GEM_COUNT = static_cast<uint32>(CastingSlot::MaxGems);
 
 	} /*spells*/
