@@ -101,7 +101,7 @@ struct NewZone_Struct
 	/*0476*/	int16  water_music;
 	/*0478*/	int16  normal_music_day;
 	/*0480*/	int16  normal_music_night;
-	/*0482*/	uint8	unknown0482[2];
+	/*0482*/	uint8	unknown0482[6];
 	/*0484*/	float	zone_exp_multiplier;	// Experience Multiplier
 	/*0488*/	float	safe_y;					// Zone Safe Y
 	/*0492*/	float	safe_x;					// Zone Safe X
@@ -192,11 +192,11 @@ struct ChannelMessage_Struct
 {
 	/*000*/	char	targetname[64];		// Tell recipient
 	/*064*/	char	sender[64];			// The senders name (len might be wrong)
-	/*128*/	uint16	language;			// Language
-	/*130*/	uint16	chan_num;			// Channel
-	/*132*/	uint16	cm_unknown4;		// ***Placeholder
-	/*134*/	uint16	skill_in_language;	// The players skill in this language? might be wrong
-	/*136*/	char	message[0];			// Variable length message
+	/*128*/	uint32	language;			// Language
+	/*132*/	uint32	chan_num;			// Channel
+	/*136*/	uint32	cm_unknown4;		// ***Placeholder
+	/*140*/	uint32	skill_in_language;	// The players skill in this language? might be wrong
+	/*144*/	char	message[0];			// Variable length message
 };
 
 struct SpawnHPUpdate_Struct
@@ -470,16 +470,17 @@ struct LoginInfo_Struct
 	/*196*/
 };
 
+// Not sure about this, blindly changed it
 struct SpellBuff_Struct
 {
 	/*000*/uint8  bufftype;        // Comment: 0 = Buff not visible, 1 = Visible and permanent buff, 2 = Visible and timer on, 4 = reverse effect values, used for lifetap type things
 	/*001*/uint8  level;			// Comment: Level of person who casted buff
 	/*002*/uint8  bard_modifier;	// Comment: this seems to be the bard modifier, it is normally 0x0A because we set in in the CastOn_Struct when its not a bard, else its the instrument mod
 	/*003*/uint8  activated;    // Copied from spell data to buff struct.  Only a few spells have this set to 1, the rest are 0
-	/*004*/uint16 spellid;        // spell id
-	/*006*/uint16 duration;        // Duration in ticks
-	/*008*/uint16 counters;        // rune amount, poison/disease/curse counters
-	/*010*/
+	/*004*/uint32 spellid;        // spell id
+	/*008*/uint32 duration;        // Duration in ticks
+	/*012*/uint32 counters;        // rune amount, poison/disease/curse counters
+	/*016*/
 };
 
 // Length: 10
@@ -503,6 +504,7 @@ struct AA_Array
 
 static const uint32  MAX_PP_AA_ARRAY		= 120;
 static const uint32 MAX_PP_SKILL		= 100; // _SkillPacketArraySize;	// 100 - actual skills buffer size
+// Length 4308
 struct PlayerProfile_Struct
 {
 	#define pp_inventory_size 30
@@ -511,150 +513,107 @@ struct PlayerProfile_Struct
 	#define pp_bank_inv_size 8
 	/* ***************** */
 	/*0000*/	uint32  checksum;		    // Checksum
-	/*0004*/	uint8	unknown0004[2];		// ***Placeholder
-	/*0006*/	char	name[64];			// Player First Name
-	/*0070*/	char	last_name[66];		// Surname OR title.
-	/*0136*/	uint32	uniqueGuildID;
-	/*0140*/	uint8	gender;				// Player Gender
-	/*0141*/	char	genderchar[1];		// ***Placeholder
-	/*0142*/	uint16	race;				// Player Race (Lyenu: Changed to an int16, since races can be over 255)
-	/*0144*/	uint16	class_;				// Player Class
-	/*0146*/	uint16	bodytype;
-	/*0148*/	uint8	level;				// Player Level
-	/*0149*/	char	levelchar[3];		// ***Placeholder
-	/*0152*/	uint32	exp;				// Current Experience
-	/*0156*/	int16	points;				// Players Points
-	/*0158*/	int16	mana;				// Player Mana
-	/*0160*/	int16	cur_hp;				// Player Health
-	/*0162*/	uint16	status;
-	/*0164*/	int16	STR;				// Player Strength
-	/*0166*/	int16	STA;				// Player Stamina
-	/*0168*/	int16	CHA;				// Player Charisma
-	/*0170*/	int16	DEX;				// Player Dexterity
-	/*0172*/	int16	INT;				// Player Intelligence
-	/*0174*/	int16	AGI;				// Player Agility
-	/*0176*/	int16	WIS;				// Player Wisdom
-	/*0178*/	uint8	face;               //
-	/*0179*/    uint8    EquipType[9];       // i think its the visible parts of the body armor
-	/*0188*/    TintProfile   EquipColor;      //
-	/*0224*/	int16	inventory[pp_inventory_size];		// Player Inventory Item Numbers
-	/*0284*/	uint8	languages[32];		// Player Languages - space for 32 but only the first 25 are used
-	/*0316*/	struct	ItemProperties_Struct	invItemProperties[pp_inventory_size];	// These correlate with inventory[30]
-	/*0616*/	struct	SpellBuff_Struct	buffs[15];	// Player Buffs Currently On
-	/*0766*/	int16	containerinv[pp_containerinv_size];
-	/*0926*/	int16   cursorbaginventory[pp_cursorbaginventory_size]; // If a bag is in slot 0, this is where the bag's items are
-	/*0946*/	struct	ItemProperties_Struct	bagItemProperties[pp_containerinv_size];	// Just like InvItemProperties
-	/*1746*/    struct  ItemProperties_Struct	cursorItemProperties[pp_cursorbaginventory_size];	  //just like invitemprops[]
-	/*1846*/	int16	spell_book[spells::SPELLBOOK_SIZE];	// Player spells scribed in their book
-	/*2358*/	uint8	unknown2374[512];	// 0xFF
-	/*2870*/	int16	mem_spells[spells::SPELL_GEM_COUNT];	// Player spells memorized
-	/*2886*/	uint8	unknown2886[16];	// 0xFF
-	/*2902*/	uint16	available_slots;
-	/*2904*/	float	y;					// Player Y
-	/*2908*/	float	x;					// Player X
-	/*2912*/	float	z;					// Player Z
-	/*2916*/	float	heading;			// Player Heading
-	/*2920*/	uint32	position;		// ***Placeholder
-	/*2924*/	int32	platinum;			// Player Platinum (Character)
-	/*2928*/	int32	gold;				// Player Gold (Character)
-	/*2932*/	int32	silver;				// Player Silver (Character)
-	/*2936*/	int32	copper;				// Player Copper (Character)
-	/*2940*/	int32	platinum_bank;		// Player Platinum (Bank)
-	/*2944*/	int32	gold_bank;			// Player Gold (Bank)
-	/*2948*/	int32	silver_bank;		// Player Silver (Bank)
-	/*2952*/	int32	copper_bank;		// Player Copper (Bank)
-	/*2956*/	int32	platinum_cursor;
-	/*2960*/	int32	gold_cursor;
-	/*2964*/	int32	silver_cursor;
-	/*2968*/	int32	copper_cursor;
-	/*2972*/	int32	currency[4];	    //Unused currency?
-	/*2988*/	int16	skills[100];		// Player Skills - 100 skills but only the first 74 are used, followed by 25 innates but only the first 14 are used
-	/*3188*/	int16	innate_skills[25];	// Like regular skills, these are 255 to indicate that the player doesn't have it and 0 means they do have it
-	/*3238*/    uint8   air_supply;
-	/*3239*/    uint8   texture;
-	/*3240*/	float   height;
-	/*3244*/	float	width;
-	/*3248*/	float   length;
-	/*3252*/	float   view_height;
-	/*3256*/    char    boat[32];
-	/*3280*/    uint8   unknown[60];
-	/*3348*/	uint8	autosplit;
-	/*3349*/	uint8	unknown3449[43];
-	/*3392*/	uint8	expansions;			//Effects features such as /disc, AA, raid
-	/*3393*/	uint8	unknown3393[23];
-	/*3416*/	int32	hunger_level;
-	/*3420*/	int32	thirst_level;
-	/*3424*/	uint8	unknown3424[20];
-	/*3444*/	uint32	zone_id;
-	/*3448*/	uint8	unknown3448[336];	// On AK, there was a lot of data here in the packet the client sent for OP_Save, but none in the encoded packet the server sent at zone in.
-	/*3784*/	uint32	bind_point_zone[5];
-	/*3804*/	float	bind_y[5];
-	/*3824*/	float	bind_x[5];
-	/*3844*/	float	bind_z[5];
-	/*3864*/	float	bind_heading[5];
-	/*3884*/	ItemProperties_Struct	bankinvitemproperties[pp_bank_inv_size];
-	/*3964*/	ItemProperties_Struct	bankbagitemproperties[pp_containerinv_size];
-	/*4764*/	uint32	login_time;
-	/*4768*/	int16	bank_inv[pp_bank_inv_size];		// Player Bank Inventory Item Numbers
-	/*4784*/	int16	bank_cont_inv[pp_containerinv_size];	// Player Bank Inventory Item Numbers (Bags)
-	/*4944*/	uint16	deity;		// ***Placeholder
-	/*4946*/	uint16	guild_id;			// Player Guild ID Number
-	/*4948*/	uint32  birthday;
-	/*4952*/	uint32  lastlogin;
-	/*4956*/	uint32  timePlayedMin;
-	/*4960*/	int8    thirst_level_unused;
-	/*4961*/    int8    hunger_level_unused;
-	/*4962*/	int8   fatigue;
-	/*4963*/	uint8	pvp;				// Player PVP Flag
-	/*4964*/	uint8	level2;
-	/*4965*/	uint8	anon;				// Player Anon. Flag
-	/*4966*/	uint8	gm;					// Player GM Flag
-	/*4967*/	uint8	guildrank;			// Player Guild Rank (0=member, 1=officer, 2=leader)
-	/*4968*/    uint8   intoxication;
-	/*4969*/	uint8	eqbackground;
-	/*4970*/	uint8	unknown4760[2];
-	/*4972*/	uint32	spellSlotRefresh[spells::SPELL_GEM_COUNT];
-	/*5004*/	uint32	unknown5003;
-	/*5008*/	uint32	abilitySlotRefresh;
-	/*5012*/	char	groupMembers[6][64];	// Group Members
-	/*5396*/	uint8	unknown5396[20];
-	/*5416*/	uint32	groupdat;
-	/*5420*/	uint32	expAA;				// Post60Exp
-	/*5424*/    uint8	title;
-	/*5425*/	uint8	perAA;			    // Player AA Percent
-	/*5426*/	uint8	haircolor;			// Player Hair Color
-	/*5427*/	uint8	beardcolor;			// Player Beard Color
-	/*5428*/	uint8	eyecolor1;			// Player Left Eye Color
-	/*5429*/	uint8	eyecolor2;			// Player Right Eye Color
-	/*5430*/	uint8	hairstyle;			// Player Hair Style
-	/*5431*/	uint8	beard;				// Player Beard Type
-	/*5432*/	uint8	luclinface;				// Player Face Type mostly 0 in packet
-	/*5433*/	TextureProfile item_material;
-	/*5469*/	uint8	unknown5469[143];
-	/*5612*/	AA_Array aa_array[MAX_PP_AA_ARRAY];
-	/*5852*/	uint32	ATR_DIVINE_RES_timer;
-	/*5856*/    uint32  ATR_FREE_HOT_timer;
-	/*5860*/	uint32	ATR_TARGET_DA_timer;
-	/*5864*/	uint32	SptWoodTimer;
-	/*5868*/	uint32	DireCharmTimer;
-	/*5872*/	uint32	ATR_STRONG_ROOT_timer;
-	/*5876*/	uint32	ATR_MASOCHISM_timer;
-	/*5880*/	uint32	ATR_MANA_BURN_timer;
-	/*5884*/	uint32	ATR_GATHER_MANA_timer;
-	/*5888*/	uint32	ATR_PET_LOH_timer;
-	/*5892*/	uint32	ExodusTimer;
-	/*5896*/	uint32	ATR_MASS_FEAR_timer;
-	/*5900*/    uint16  air_remaining;
-	/*5902*/    uint16  aapoints;
-	/*5904*/	uint32	MGBTimer;
-	/*5908*/	uint8   unknown5908[91];
-	/*5999*/	int8	mBitFlags[6];
-	/*6005*/	uint8	Unknown6004[707];
-	/*6712*/	uint32	PoPSpellTimer;
-	/*6716*/	uint32	LastShield;
-	/*6720*/	uint32	LastModulated;
-	/*6724*/	uint8	Unknown6724[1736]; // According to the client, this is all unused/unknown space.
-	/*8460*/
+	/*0004*/	char	name[64];			// Player First Name
+	/*0068*/	char	last_name[32];		// Surname OR title.
+	/*0100*/	uint8	gender;				// Player Gender
+	/*0101*/	char	genderchar[3];		// ***Placeholder
+	/*0104*/	uint32 race;				// Player Race (Lyenu: Changed to an int16, since races can be over 255)
+	/*0108*/	uint32	class_;				// Player Class
+	/*0112*/	uint32 bodytype;	// guess
+	/*0116*/	uint8	level;				// Player Level
+	/*0117*/	char	levelchar[3];		// ***Placeholder
+	/*0120*/	uint32	bind_point_zone;
+	/*0124*/	float	bind_y;
+	/*0128*/	float	bind_x;
+	/*0132*/	float	bind_z;
+	/*0136*/	float	bind_heading;
+	/*0140*/	uint32	deity; // guess
+	/*0144*/	uint32	expAA; // guess might be guild_id
+	/*0148*/	uint32	birthday;
+	/*0152*/	uint32	lastlogin;
+	/*0156*/	uint32	timePlayedMin;
+	/*0160*/	int8	fatigue;
+	/*0161*/	uint8	pvp;				// Player PVP Flag
+	/*0162*/	uint8	level2;
+	/*0163*/	uint8	anon;				// Player Anon. Flag
+	/*0164*/	uint8	gm;					// Player GM Flag
+
+	/*0165*/	uint8	unknown0165[7];
+	/*0172*/	uint8	unknown0172[40];	// from ghidra
+
+	/*0212*/	uint8	haircolor;			// Player hair color
+	/*0213*/	uint8	beardcolor;			// Player beard color
+	/*0214*/	uint8	eyecolor1;			// Player left eye color
+	/*0215*/	uint8	eyecolor2;			// Player right eye color
+	/*0216*/	uint8	hairstyle;			// Player hair style
+	/*0217*/	uint8	beard;				// Beard type
+	/*0218*/	uint8	luclinface;		// guess
+	/*0219*/	uint8	unknown0219;
+
+	// ghidra shows 88 bytes then 36 bytes, 5.0 shows the opposite, might need to swap them:
+	/*0220*/	TextureProfile item_material;	// Item texture/material of worn/held items
+	/*0256*/	uint8	unknown0256[88];
+
+	/*0344*/	AA_Array	aa_array[MAX_PP_AA_ARRAY];		// Length may not be right but i assume no class has more than this
+	/*0584*/	uint8	unknown0584[4];
+
+	/*0588*/	char	servername[32];
+	/*0620*/	char unknown00620[32];	// complete guess
+	/*0652*/	uint32				guild_id;		// complete guess
+	/*0656*/	uint32				exp;				// Current Experience
+	/*0660*/	uint32				points;				// Unspent Practice points
+	/*0664*/	uint32				mana;				// current mana
+	/*0668*/	uint32				cur_hp;				// current hp
+	/*0672*/	uint32				status;		// 0x05
+	/*0676*/	uint32				STR;				// Strength
+	/*0680*/	uint32				STA;				// Stamina
+	/*0684*/	uint32				CHA;				// Charisma
+	/*0688*/	uint32				DEX;				// Dexterity
+	/*0692*/	uint32				INT;				// Intelligence
+	/*0696*/	uint32				AGI;				// Agility
+	/*0700*/	uint32				WIS;				// Wisdom
+	/*0704*/	uint8				face;				// Player face
+
+	/*0705*/	uint8	unknown0705[11]; // maybe EquipType[9] ? this is where I was two bytes short.
+	/*0716*/ TintProfile EquipColor; // 36 bytes in titanium
+
+	/*0752*/ uint8 languages[32];
+	/*0784*/	int32	spell_book[spells::SPELLBOOK_SIZE];    // List of the Spells in spellbook // 400
+	/*2384*/	int32	unused_spell_book[112];   // all 0xff after last spell
+	/*2832*/	int32	mem_spells[spells::SPELL_GEM_COUNT]; // List of spells memorized
+	/*2864*/ int32 unused_mem_spells[8];
+	/*2896*/	uint32 available_slots; // guess
+	/*2900*/	float	y;					// Player Y
+	/*2904*/	float	x;					// Player X
+	/*2908*/	float	z;					// Player Z
+	/*2912*/	float	heading;			// Player Heading
+	/*2916*/	uint32	position;		// ***Placeholder
+	/*2920*/	int32	platinum;			// Player Platinum (Character)
+	/*2922*/	int32	gold;				// Player Gold (Character)
+	/*2928*/	int32	silver;				// Player Silver (Character)
+	/*2932*/	int32	copper;				// Player Copper (Character)
+	/*2936*/	int32	platinum_bank;		// Player Platinum (Bank)
+	/*2940*/	int32	gold_bank;			// Player Gold (Bank)
+	/*2944*/	int32	silver_bank;		// Player Silver (Bank)
+	/*2948*/	int32	copper_bank;		// Player Copper (Bank)
+	/*2952*/	int32	platinum_cursor;
+	/*2956*/	int32	gold_cursor;
+	/*2960*/	int32	silver_cursor;
+	/*2964*/	int32	copper_cursor;
+	/*2968*/	int32	skills[MAX_PP_SKILL];		// Player Skills - 100 skills but only the first 74 are used, followed by 25 innates but only the first 14 are used
+	/*3368*/	int32	innate_skills[25];	// Like regular skills, these are 255 to indicate that the player doesn't have it and 0 means they do have it
+	/*3468*/	uint8 texture;
+	/*3469*/	uint8 unknown3469[19];
+
+	/*3488*/	char	boat[32]; // unsure about length
+	/*3520*/	char	lazy[40]; // FIXME: fill out packet
+
+	/*3560*/	uint8 unknown3560[116]; // ghidra has a memcpy 116
+	/*3676*/	uint32	zone_id;			// Current zone of the player
+	/*3680*/	SpellBuff_Struct	buffs[15];	// Player Buffs Currently On - guess
+	/*3920*/	char	groupMembers[6][64]; // guess
+	/*4304*/	uint8 lazy3[4]; // FIXME: fill out packet
+	/*4308*/
 };
 
 //Server sends this packet for reuse timers
@@ -760,6 +719,158 @@ struct CharacterSelect_Struct {
 	/*1640*/	uint8	hairstyle[10];
 	/*1650*/	uint8	beard[10];
 	/*1660*/
+};
+
+struct ServerZoneEntry_Struct
+{
+	uint8	checksum[4];
+	uint8	type;		// ***Placeholder
+	char	name[64];			// Name
+	uint8 unknown0x41;
+	uint8 unknown0x42;
+	uint8 unknown0x43;
+	uint8 unknown0x44;
+	uint8 unknown0x45;
+	uint8 unknown0x46;
+	uint8 unknown0x47;
+	float vz;
+	float heading;
+	float x_pos;
+	float vy;
+	float y_pos;
+	float z_pos;
+	float pitch;
+	float accel;
+	float vx;
+	float rate_p;
+	float rate_h;
+	float view_pitch;
+	uint32 unknown0x78;
+	uint32 unknown0x7c;
+	uint32 unknown0x80;
+	int32	LocalInfo;
+	uint8 unknown0x88;
+	uint8 unknown0x89;
+	uint8 unknown0x8a;
+	uint8 unknown0x8b;
+	uint8	sneaking;
+	int8 LD;
+	char m_bTemporaryPet;
+	int8 LFG;
+	uint8 unknown0x90;
+	int8 unknown0x91; // Something boat / sphere related
+	uint8 unknown0x92;
+	uint8 unknown0x93;
+	uint32 equipment[9];
+	EQ::TintProfile equipcolors;
+	uint32 zoneID;
+	int32 animation_vtable;
+	int32	next;
+	int32	My_Char;
+	uint8 unknown0xec;
+	uint8 unknown0xed;
+	uint8 unknown0xee;
+	uint8 unknown0xef;
+	int32	prev;
+	uint8 unknown0xf4;
+	uint8 unknown0xf5;
+	uint8 unknown0xf6;
+	uint8 unknown0xf7;
+	char Surname[32];
+	float width;
+	float length;
+	float runspeed;
+	float view_height;
+	float sprite_oheight;
+	float size;
+	float walkspeed;
+	uint8 NPC;
+	uint8 haircolor;
+	uint8 beardcolor;
+	uint8 eyecolor1;
+	uint8 eyecolor2;
+	uint8 hairstyle;
+	uint8 beard;
+	uint8 animation;
+	uint8 level;
+	uint8 face;
+	uint8 gender;
+	uint8 pvp;
+	uint8 invis;
+	uint8 anim_type;
+	uint8 class_;
+	uint8 light;
+	uint8 helm;
+	uint8 bodytexture;
+	uint8 GM;
+	uint8 unknown0x147;
+	uint16 sprite_oheights;
+	uint8 unknown0x14a;
+	uint8 unknown0x14b;
+	uint32 petOwnerId;
+	uint32 race;
+	uint32 avatar;
+	uint8 unknown0x158;
+	uint8 unknown0x159;
+	uint8 unknown0x15a;
+	uint8 unknown0x15b;
+	uint32 AFK;
+	int32 bodytype;
+	uint32 curHP;
+	uint32 aa_title;
+	uint32 guildrank;
+	uint32 deity;
+	uint32 max_hp;
+	uint32 GuildID;
+	int32 flymode;
+	uint8 unknown0x180;
+	uint8 unknown0x181;
+	uint8 unknown0x182;
+	uint8 unknown0x183;
+	uint8 unknown0x184;
+	uint8 unknown0x185;
+	uint8 unknown0x186;
+	uint8 unknown0x187;
+};
+
+// FIXME: Taken from emu 5 & is complete wrong still
+struct SpawnPositionUpdate_Struct
+{
+	/*00*/	uint16	spawn_id;
+	/*02*/	uint32	heading:12;
+	/*02*/	int32	delta_heading:10;
+	/*02*/	int32	anim_type:10;
+	/*06*/	int32	delta_y:13;
+	/*06*/	int32	x_pos:19;
+	/*10s*/	int32	y_pos:19;
+	/*10*/	int32	delta_z:13;
+	/*14*/	int32	delta_x:13;
+	/*14*/	int32	z_pos:19;
+};
+
+struct ClientTarget_Struct
+{
+	/*000*/	uint32	new_target;			// Target ID
+	/*004*/
+};
+
+// Taken from eqemu 5
+struct Animation_Struct
+{
+	/*00*/	int16 spawnid;
+	/*02*/	int8 animation_speed;
+	/*03*/	int8 action;
+	/*04*/
+};
+
+// Length: 9
+struct WearChange_Struct
+{
+	/*000*/	uint16 spawn_id;
+	/*002*/	uint16 material;
+	/*004*/	EQ::textures::Tint_Struct color;
+	/*008*/	uint8	wear_slot_id;
+	/*009*/
 };
 
 	};	//end namespace structs

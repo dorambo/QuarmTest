@@ -145,15 +145,13 @@ namespace Evo {
 		OUT(race);
 		OUT(class_);
 		OUT(level);
-		for(r = 0; r < 5; r++) {
-			eq->bind_point_zone[r] = emu->binds[r].zoneId;
-			eq->bind_x[r] = emu->binds[r].x;
-			eq->bind_y[r] = emu->binds[r].y;
-			eq->bind_z[r] = emu->binds[r].z;
-			eq->bind_heading[r] = emu->binds[r].heading;
-		}
+		eq->bind_point_zone = emu->binds[0].zoneId;
+		eq->bind_x = emu->binds[0].x;
+		eq->bind_y = emu->binds[0].y;
+		eq->bind_z = emu->binds[0].z;
+		eq->bind_heading = emu->binds[0].heading;
 		OUT(deity);
-		OUT(intoxication);
+		// OUT(intoxication);
 		OUT(haircolor);
 		OUT(beardcolor);
 		OUT(eyecolor1);
@@ -172,8 +170,8 @@ namespace Evo {
 		OUT(WIS);
 		OUT(face);
 		OUT(luclinface);
-		OUT_array(spell_book, 256);
-		OUT_array(mem_spells, 8);
+		OUT_array(spell_book, spells::SPELLBOOK_SIZE);
+		OUT_array(mem_spells, spells::SPELL_GEM_COUNT);
 		OUT(platinum);
 		OUT(gold);
 		OUT(silver);
@@ -183,6 +181,7 @@ namespace Evo {
 		OUT(silver_cursor);
 		OUT(copper_cursor);
 		OUT_array(skills, structs::MAX_PP_SKILL);  // 1:1 direct copy (100 dword)
+		OUT_array(innate_skills, 25); // why isn't this in the mac pp
 
 		for(r = 0; r < 15; r++)
 		{
@@ -203,8 +202,8 @@ namespace Evo {
 		OUT(pvp);
 		OUT(anon);
 		OUT(gm);
-		OUT(guildrank);
-		eq->uniqueGuildID = emu->guild_id;
+		// OUT(guildrank);
+		// eq->uniqueGuildID = emu->guild_id;
 		OUT(exp);
 		OUT_array(languages, 26);
 		OUT(x);
@@ -216,21 +215,21 @@ namespace Evo {
 		OUT(silver_bank);
 		OUT(copper_bank);
 		OUT(level2);
-		OUT(autosplit);
+		// OUT(autosplit);
 		OUT(zone_id);
 		OUT_str(boat);
-		OUT(aapoints);
+		// OUT(aapoints);
 		OUT(expAA);
-		OUT(perAA);
-		OUT(air_remaining);
-		if(emu->expansions > 15)
-			eq->expansions = 15;
-		else
-			OUT(expansions);
-		OUT(hunger_level);
-		OUT(thirst_level);
-		eq->thirst_level_unused = 127;
-		eq->hunger_level_unused = 127;
+		// OUT(perAA);
+		// OUT(air_remaining);
+		// if(emu->expansions > 15)
+		// 	eq->expansions = 15;
+		// else
+		// 	OUT(expansions);
+		// OUT(hunger_level);
+		// OUT(thirst_level);
+		// eq->thirst_level_unused = 127;
+		// eq->hunger_level_unused = 127;
 		for(r = 0; r < structs::MAX_PP_AA_ARRAY; r++)
 		{
 			OUT(aa_array[r].AA);
@@ -244,51 +243,43 @@ namespace Evo {
 		{
 			OUT(item_material.Slot[r].Material);
 		}
-		OUT(abilitySlotRefresh);
-		OUT_array(spellSlotRefresh, spells::SPELL_GEM_COUNT);
-		OUT(eqbackground);
-		OUT(fatigue);
-		OUT(height);
-		OUT(width);
-		OUT(length);
-		OUT(view_height);
-		OUT_array(cursorbaginventory,pp_cursorbaginventory_size);
-		for(r = 0; r < pp_cursorbaginventory_size; r++)
-		{
-			OUT(cursorItemProperties[r].charges);
-		}
-		OUT_array(inventory,pp_inventory_size);
-		for(r = 0; r < pp_inventory_size; r++)
-		{
-			OUT(invItemProperties[r].charges);
-		}
-		OUT_array(containerinv,pp_containerinv_size);
-		for(r = 0; r < pp_containerinv_size; r++)
-		{
-			OUT(bagItemProperties[r].charges);
-		}
-		OUT_array(bank_inv,pp_bank_inv_size);
-		for(r = 0; r < pp_bank_inv_size; r++)
-		{
-			OUT(bankinvitemproperties[r].charges);
-		}
-		OUT_array(bank_cont_inv,pp_containerinv_size);
-		for(r = 0; r < pp_containerinv_size; r++)
-		{
-			OUT(bankbagitemproperties[r].charges);
-		}
-		OUT(LastModulated);
-
-		//Log(Logs::General, Logs::Netcode, "[STRUCTS] Player Profile Packet is %i bytes uncompressed", sizeof(structs::PlayerProfile_Struct));
+		// OUT(abilitySlotRefresh);
+		// OUT_array(spellSlotRefresh, spells::SPELL_GEM_COUNT);
+		// OUT(eqbackground);
+		// OUT(fatigue);
+		// OUT(height);
+		// OUT(width);
+		// OUT(length);
+		// OUT(view_height);
+		// OUT_array(cursorbaginventory,pp_cursorbaginventory_size);
+		// for(r = 0; r < pp_cursorbaginventory_size; r++)
+		// {
+		// 	OUT(cursorItemProperties[r].charges);
+		// }
+		// OUT_array(inventory,pp_inventory_size);
+		// for(r = 0; r < pp_inventory_size; r++)
+		// {
+		// 	OUT(invItemProperties[r].charges);
+		// }
+		// OUT_array(containerinv,pp_containerinv_size);
+		// for(r = 0; r < pp_containerinv_size; r++)
+		// {
+		// 	OUT(bagItemProperties[r].charges);
+		// }
+		// OUT_array(bank_inv,pp_bank_inv_size);
+		// for(r = 0; r < pp_bank_inv_size; r++)
+		// {
+		// 	OUT(bankinvitemproperties[r].charges);
+		// }
+		// OUT_array(bank_cont_inv,pp_containerinv_size);
+		// for(r = 0; r < pp_containerinv_size; r++)
+		// {
+		// 	OUT(bankbagitemproperties[r].charges);
+		// }
+		// OUT(LastModulated);
 
 		CRC32::SetEQChecksum(__packet->pBuffer, sizeof(structs::PlayerProfile_Struct)-4);
-		auto outapp = new EQApplicationPacket(OP_PlayerProfile, 8192);
-		outapp->size = DeflatePacket((unsigned char*)__packet->pBuffer, sizeof(structs::PlayerProfile_Struct), outapp->pBuffer, 8192);
-		EncryptProfilePacket(outapp->pBuffer, outapp->size);
-		//Log(Logs::General, Logs::Netcode, "[STRUCTS] Player Profile Packet is %i bytes compressed", outapp->size);
-		dest->FastQueuePacket(&outapp);
-		delete[] __emu_buffer;
-		delete __packet;
+		FINISH_ENCODE();
 	}
 
 	ENCODE(OP_NewZone)
@@ -1169,6 +1160,262 @@ namespace Evo {
 			OUT(beard[r]);
 		}
 
+		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_ZoneEntry)
+	{
+		ENCODE_LENGTH_EXACT(ServerZoneEntry_Struct);
+		SETUP_DIRECT_ENCODE(ServerZoneEntry_Struct, structs::ServerZoneEntry_Struct);
+
+		OUT(type);
+		OUT_str(name);
+			// OUT(unknown0x41);
+			// OUT(unknown0x42);
+			// OUT(unknown0x43);
+			// OUT(unknown0x44);
+			// OUT(unknown0x45);
+			// OUT(unknown0x46);
+			// OUT(unknown0x47);
+		// OUT(vz);
+		OUT(heading);
+		OUT(x_pos);
+		// OUT(vy);
+		OUT(y_pos);
+		OUT(z_pos);
+		// OUT(pitch);
+		// OUT(accel);
+		// OUT(vx);
+		// OUT(rate_p);
+		// OUT(rate_h);
+		// OUT(view_pitch);
+			// OUT(unknown0x78);
+			// OUT(unknown0x7c);
+			// OUT(unknown0x80);
+		OUT(LocalInfo);
+			// OUT(unknown0x88);
+			// OUT(unknown0x89);
+			// OUT(unknown0x8a);
+			// OUT(unknown0x8b);
+		OUT(sneaking);
+		OUT(LD);
+		// OUT(m_bTemporaryPet); // FIXME:
+		// OUT(LFG);
+			// OUT(unknown0x90);
+			// OUT(unknown0x91); // Something boat / sphere related
+			// OUT(unknown0x92);
+			// OUT(unknown0x93);
+		// OUT(equipment); // FIXME: uint32 to uint16
+		for (int k = 0; k < 9; k++)
+		{
+			eq->equipment[k] = emu->equipment[k];
+			eq->equipcolors.Slot[k].Color = emu->equipcolors.Slot[k].Color;
+		}
+
+		OUT(equipcolors);
+		OUT(zoneID);
+			// OUT(animation_vtable);
+		OUT(next);
+		OUT(My_Char);
+			// OUT(unknown0xec);
+			// OUT(unknown0xed);
+			// OUT(unknown0xee);
+			// OUT(unknown0xef);
+		OUT(prev);
+			// OUT(unknown0xf4);
+			// OUT(unknown0xf5);
+			// OUT(unknown0xf6);
+			// OUT(unknown0xf7);
+		OUT_str(Surname);
+		OUT(width);
+		OUT(length);
+		OUT(runspeed);
+		OUT(view_height);
+		OUT(sprite_oheight);
+		OUT(size);
+		OUT(walkspeed);
+		OUT(NPC);
+		OUT(haircolor);
+		OUT(beardcolor);
+		OUT(eyecolor1);
+		OUT(eyecolor2);
+		OUT(hairstyle);
+		OUT(beard);
+		OUT(animation);
+		OUT(level);
+		OUT(face);
+		OUT(gender);
+		OUT(pvp);
+		OUT(invis);
+		OUT(anim_type);
+		OUT(class_);
+		OUT(light);
+		OUT(helm);
+		OUT(bodytexture);
+		OUT(GM);
+			// OUT(unknown0x147);
+		OUT(sprite_oheights);
+			// OUT(unknown0x14a);
+			// OUT(unknown0x14b);
+		OUT(petOwnerId);
+		OUT(race);
+		OUT(avatar);
+			// OUT(unknown0x158);
+			// OUT(unknown0x159);
+			// OUT(unknown0x15a);
+			// OUT(unknown0x15b);
+		OUT(AFK);
+		OUT(bodytype);
+		OUT(curHP);
+		// OUT(aa_title);
+		OUT(guildrank);
+		OUT(deity);
+		OUT(max_hp);
+		OUT(GuildID);
+		OUT(flymode);
+			// OUT(unknown0x180);
+			// OUT(unknown0x181);
+			// OUT(unknown0x182);
+			// OUT(unknown0x183);
+			// OUT(unknown0x184);
+			// OUT(unknown0x185);
+			// OUT(unknown0x186);
+			// OUT(unknown0x187);
+
+		CRC32::SetEQChecksum(__packet->pBuffer, sizeof(structs::ServerZoneEntry_Struct));
+		FINISH_ENCODE();
+	}
+
+	DECODE(OP_ChannelMessage)
+	{
+		unsigned char *__eq_buffer = __packet->pBuffer;
+		char *InBuffer = (char *)__eq_buffer;
+		char Target[64];
+		char Sender[64];
+
+		strncpy(Target, InBuffer, sizeof(Target));
+		InBuffer += sizeof(Target);
+		strncpy(Sender, InBuffer, sizeof(Sender));
+		InBuffer += sizeof(Sender);
+
+		uint32 Language = VARSTRUCT_DECODE_TYPE(uint32, InBuffer);
+		uint32 Channel = VARSTRUCT_DECODE_TYPE(uint32, InBuffer);
+		uint32 CmUnknown4 = VARSTRUCT_DECODE_TYPE(uint32, InBuffer);
+		uint32 Skill = VARSTRUCT_DECODE_TYPE(uint32, InBuffer);
+
+		__packet->size = sizeof(ChannelMessage_Struct) + strlen(InBuffer) + 1;
+		__packet->pBuffer = new unsigned char[__packet->size];
+		ChannelMessage_Struct *emu = (ChannelMessage_Struct *) __packet->pBuffer;
+
+		strn0cpy(emu->targetname, Target, sizeof(emu->targetname));
+		strn0cpy(emu->sender, Sender, sizeof(emu->sender));
+		emu->language = (uint16)Language;
+		emu->chan_num = (uint16)Channel;
+		emu->cm_unknown4 = (uint16)CmUnknown4;
+		emu->skill_in_language = (uint16)Skill;
+		strcpy(emu->message, InBuffer);
+
+		delete [] __eq_buffer;
+	}
+
+	ENCODE(OP_ChannelMessage)
+	{
+		EQApplicationPacket *__packet = *p;
+		*p = nullptr;
+		unsigned char *__emu_buffer = __packet->pBuffer;
+		ChannelMessage_Struct *emu = (ChannelMessage_Struct *) __emu_buffer;
+
+		int msglen = strlen(emu->message) + 1;
+		__packet->size = sizeof(structs::ChannelMessage_Struct) + msglen ;
+		__packet->pBuffer = new unsigned char[__packet->size];
+		structs::ChannelMessage_Struct *eq = (structs::ChannelMessage_Struct *) __packet->pBuffer;
+		OUT_str(targetname);
+		OUT_str(sender);
+		OUT(language);
+		OUT(chan_num);
+		OUT(cm_unknown4);
+		OUT(skill_in_language);
+		strn0cpy(eq->message, emu->message, msglen);
+		FINISH_ENCODE();
+	}
+
+	DECODE(OP_ClientUpdate)
+	{
+		DECODE_LENGTH_EXACT(structs::SpawnPositionUpdate_Struct);
+		SETUP_DIRECT_DECODE(SpawnPositionUpdate_Struct, structs::SpawnPositionUpdate_Struct);
+
+		emu->spawn_id = eq->spawn_id;
+		emu->heading = eq->heading * 0.25;
+		emu->delta_heading = eq->delta_heading * 0.05;
+		emu->anim_type = eq->anim_type;
+		emu->y_pos = eq->y_pos * 0.125f;
+		emu->x_pos = eq->x_pos * 0.125f;
+		emu->z_pos = eq->z_pos * 0.125f;
+
+		// FIXME: all of the delta structs & calcs are completely wrong.
+		// SetValue uses 1/16 and * 16
+		// Evo might be using 0.015625 and 64
+		float delta_y = EQ19toFloat(eq->delta_y) * 0.25;
+		float delta_x = EQ19toFloat(eq->delta_x) * 0.25;
+		float delta_z = EQ19toFloat(eq->delta_z) * 0.25;
+		emu->delta_yzx.SetValue(delta_x, delta_y, delta_z);
+
+		// emu->delta_yzx.SetValue(NewEQ13toFloat(eq->delta_x), NewEQ13toFloat(eq->delta_y), NewEQ13toFloat(eq->delta_z));
+		// emu->delta_yzx.SetValue(EQ19toFloat(eq->delta_x), EQ19toFloat(eq->delta_y), EQ19toFloat(eq->delta_z));
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_TargetMouse)
+	{
+		DECODE_LENGTH_EXACT(structs::ClientTarget_Struct);
+		SETUP_DIRECT_DECODE(ClientTarget_Struct, structs::ClientTarget_Struct);
+		// FIXME: common struct needs to be converted to uint
+		emu->new_target = eq->new_target;
+		FINISH_DIRECT_DECODE();
+	}
+
+	// FIXME: not working, no anim when dispatched to pop client
+	DECODE(OP_Animation)
+	{
+		DECODE_LENGTH_EXACT(structs::Animation_Struct);
+		SETUP_DIRECT_DECODE(Animation_Struct, structs::Animation_Struct);
+		IN(spawnid);
+		// IN(animation_speed);
+		IN(action);
+		FINISH_DIRECT_DECODE();
+	}
+
+	// FIXME: not working, #doanim will get stuck
+	ENCODE(OP_Animation)
+	{
+		ENCODE_LENGTH_EXACT(Animation_Struct);
+		SETUP_DIRECT_ENCODE(Animation_Struct, structs::Animation_Struct);
+		OUT(spawnid);
+		// OUT(animation_speed);
+		OUT(action);
+		FINISH_ENCODE();
+	}
+
+	DECODE(OP_WearChange)
+	{
+		DECODE_LENGTH_EXACT(structs::WearChange_Struct);
+		SETUP_DIRECT_DECODE(WearChange_Struct, structs::WearChange_Struct);
+		IN(spawn_id);
+		IN(material);
+		IN(color);
+		IN(wear_slot_id);
+		FINISH_DIRECT_DECODE();
+	}
+
+	ENCODE(OP_WearChange)
+	{
+		ENCODE_LENGTH_EXACT(WearChange_Struct);
+		SETUP_DIRECT_ENCODE(WearChange_Struct, structs::WearChange_Struct);
+		OUT(spawn_id);
+		OUT(material);
+		OUT(color);
+		OUT(wear_slot_id);
 		FINISH_ENCODE();
 	}
 
