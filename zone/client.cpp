@@ -868,7 +868,11 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 	}
 	case ChatChannel_Shout: { /* Shout */
 		Mob *sender = this;
-
+		if (GetRevoked())
+		{
+			Message(CC_Default, "You have been muted. You may not talk on Shout.");
+			return;
+		}
 		entity_list.ChannelMessage(sender, chan_num, language, lang_skill, message);
 		break;
 	}
@@ -903,6 +907,12 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		}
 		else if(!RuleB(Chat, ServerWideAuction)) {
 			Mob *sender = this;
+
+			if (GetRevoked())
+			{
+				Message(CC_Default, "You have been revoked. You may not send Auction messages.");
+				return;
+			}
 
 			entity_list.ChannelMessage(sender, chan_num, language, lang_skill, message);
 		}
@@ -945,6 +955,11 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		else
 		{
 			Mob *sender = this;
+			if (GetRevoked())
+			{
+				Message(CC_Default, "You have been revoked. You may not talk in Out Of Character.");
+				return;
+			}
 
 			entity_list.ChannelMessage(sender, chan_num, language, lang_skill, message);
 		}
@@ -1031,8 +1046,14 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		Mob* sender = this;
 		if (GetPet() && FindType(SE_VoiceGraft))
 			sender = GetPet();
-
-		entity_list.ChannelMessage(sender, chan_num, language, lang_skill, message);
+		if (GetRevoked())
+		{
+			Message(CC_Default, "You have been revoked. You may not talk on say, except to NPCs directly.");
+		}
+		else
+		{
+			entity_list.ChannelMessage(sender, chan_num, language, lang_skill, message);
+		}
 		parse->EventPlayer(EVENT_SAY, this, message, language);
 
 		if (sender != this)
@@ -2222,6 +2243,10 @@ void Client::SetFeigned(bool in_feigned) {
 		{
 			SetPet(0);
 		}
+		// feign breaks charmed pets
+		if (GetPet() && GetPet()->IsCharmedPet()) {
+			FadePetCharmBuff();
+		}
 		SetHorseId(0);
 		feigned_time = Timer::GetCurrentTime();
 	}
@@ -2276,15 +2301,37 @@ bool Client::BindWound(uint16 bindmob_id, bool start, bool fail)
 		bind_out->type = 5; // not in zone
 		QueuePacket(outapp);
 		safe_delete(outapp);
-
 		return false;
 	}
-
-	if(!fail) 
+  
+	if (!fail)
 	{
 		outapp = new EQApplicationPacket(OP_Bind_Wound, sizeof(BindWound_Struct));
 		BindWound_Struct *bind_out = (BindWound_Struct *) outapp->pBuffer;
 		bind_out->to = bindmob->GetID();
+
+		// Handle solo ruleset
+		if (bindmob->IsClient()) {
+			Client* bind_client = bindmob->CastToClient();
+			std::string msg;
+			if (bind_client->IsSoloOnly()) {
+				msg = "This player is running the Solo Only ruleset. You cannot bind wound.";
+			}
+			else if (IsSelfFound() != bind_client->CastToClient()->IsSelfFound()) {
+				msg = "The player's Self Found flag does not match yours. You cannot bind wound.";
+			}
+			if (!msg.empty()) {
+				this->Message(CC_Red, msg.c_str());
+				// DO NOT CHANGE - any other packet order will cause client bugs / crashes.
+				bind_out->type = 3;
+				QueuePacket(outapp);
+				bind_out->type = 1;
+				QueuePacket(outapp);
+				safe_delete(outapp);
+				return false;
+			}
+		}
+
 		// Start bind
 		if(!bindwound_timer.Enabled()) 
 		{

@@ -1731,9 +1731,9 @@ void Mob::AI_Process() {
 										float ceiling = zone->zonemap->FindCeiling(dest, nullptr);
 										float ground = zone->zonemap->FindGround(dest, nullptr);
 
-										if (dest.z < (ground + GetZOffset()))
+										if (ground != BEST_Z_INVALID && dest.z < (ground + GetZOffset()))
 											dest.z = ground + GetZOffset();
-										if (dest.z > ceiling) {
+										if (ceiling != BEST_Z_INVALID && dest.z > ceiling) {
 											dest.z = ceiling - 1.0f;
 										}
 										m_Navigation.z = dest.z;
@@ -2755,29 +2755,27 @@ bool Mob::AddRampage(Mob *mob)
 	if (!GetSpecialAbility(SPECATK_RAMPAGE))
 		return false;
 
-	int hole = -1;
+	int firsthole = -1;
 	for (int i = 0; i < RampageArray.size(); i++) {
-		// if Entity ID is already on the list don't add it again
-		if (mob->GetID() == RampageArray[i])
-			return false;
-
-		// look for a 'hole' to fill instead of adding to bottom of list
-		if (RampageArray[i] == 0)
-		{
-			hole = i;
-			break;
-		}
-
 		// in case entity isn't removed from list when it should be
 		if (!entity_list.GetMob(RampageArray[i]))
 		{
-			hole = i;
-			break;
+			RampageArray[i] = 0;
 		}
+
+		// look for a 'hole' to fill instead of adding to bottom of list
+		if (firsthole == -1 && RampageArray[i] == 0)
+		{
+			firsthole = i;
+		}
+
+		// if Entity ID is already on the list don't add it again
+		if (mob->GetID() == RampageArray[i])
+			return false;
 	}
 
-	if (hole > -1)
-		RampageArray[hole] = mob->GetID();
+	if (firsthole > -1)
+		RampageArray[firsthole] = mob->GetID();
 	else
 		RampageArray.push_back(mob->GetID());
 

@@ -71,6 +71,10 @@ public:
 	// used to check if mob is on hatelist
 	bool IsOnHateList(Mob *);
 	bool IsClientOnHateList();
+	bool IsCharacterOnHateList(uint32 character_id);
+	bool IsGroupOnHateList(uint32 group_id);
+	bool IsRaidOnHateList(uint32 raid_id);
+	bool IsGuildOnHateList(uint32 guild_id);
 	// used to remove or add frenzy hate
 	void CheckFrenzyHate();
 	//Gets the target with the most hate regardless of things like frenzy etc.
@@ -87,6 +91,13 @@ public:
 	Mob* GetFirstMobInRange();
 	// time since aggro started (if engaged) or time since aggro ended (if not engaged) or 0xFFFFFFFF if never aggroed
 	uint32 GetAggroDeaggroTime() { return aggroDeaggroTime == 0xFFFFFFFF ? 0xFFFFFFFF : Timer::GetCurrentTime() - aggroDeaggroTime; }
+	// time since aggro started (if engaged) or 0xFFFFFFFF if never aggroed
+	uint32 GetAggroTime() { return aggroTime == 0xFFFFFFFF ? 0xFFFFFFFF : aggroTime; }
+
+
+	void SetAggroTime(uint32 in_time) { aggroTime = in_time; }
+
+
 
 	int AreaRampage(Mob *caster, Mob *target, int count, int damagePct = 100);
 
@@ -122,6 +133,7 @@ private:
 	int32 sitOutsideBonus;
 	bool rememberDistantMobs;
 	bool nobodyInMeleeRange;
+	uint32 aggroTime;
 	uint32 aggroDeaggroTime;
 	bool allHatersIgnored;
 	bool hasFeignedHaters;
