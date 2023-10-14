@@ -70,12 +70,12 @@ float Mob::GetBaseEXP()
 		basexp = 0;
 		Log(Logs::General, Logs::EQMac, "%s was completely damaged by a damage shield/NPC. No XP for you one year.", GetName());
 	}
-	else if(player_damage == 0)
+	else if (player_damage == 0 && RuleB(Quarm, NoPlayerDamagePetPenalty))
 	{
 		basexp *= 0.25f;
 		Log(Logs::General, Logs::EQMac, "%s was not damaged by a player. Exp reduced to 25 percent of normal", GetName());
 	}
-	else if(dire_pet_damage > 0)
+	else if (dire_pet_damage > 0)
 	{
 		float pet_dmg_pct = static_cast<float>(dire_pet_damage) / total_damage;
 		float reduced_pct = 1.0f;
@@ -965,7 +965,7 @@ bool Group::ProcessGroupSplit(Mob* killed_mob, struct GroupExpSplit_Struct& gs, 
 		if (killed_mob)
 		{
 			int32 damage_amount = 0;
-			Mob* top_damager = killed_mob->GetDamageTop(damage_amount, false, false);
+			Mob* top_damager = killed_mob->GetDamageTopSingleMob(damage_amount);
 			if (top_damager)
 			{
 				if (top_damager->IsPet())
@@ -1225,8 +1225,9 @@ void Client::GetExpLoss(Mob* killerMob, uint16 spell, int &exploss, uint8 killed
 	{
 		exploss = 0;
 	}
-	else if( killerMob )
+	else if( killerMob && spell != 940 ) //ManaConvert
 	{
+
 		if( killerMob->IsClient() )
 		{
 			exploss = 0;
@@ -1236,6 +1237,9 @@ void Client::GetExpLoss(Mob* killerMob, uint16 spell, int &exploss, uint8 killed
 			exploss = 0;
 		}
 	}
+
+	if (spell == 940) // ManaConvert causes EXP loss. Sorry.
+		return;
 
 	if (killedby == Killed_DUEL || killedby == Killed_PVP || killedby == Killed_Self)
 	{

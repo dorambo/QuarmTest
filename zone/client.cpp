@@ -125,6 +125,7 @@ Client::Client(EQStreamInterface* ieqs)
 	process_timer(100),
 	stamina_timer(40000),
 	zoneinpacket_timer(1000),
+	accidentalfall_timer(15000),
 	linkdead_timer(RuleI(Zone,ClientLinkdeadMS)),
 	dead_timer(2000),
 	global_channel_timer(1000),
@@ -163,6 +164,8 @@ Client::Client(EQStreamInterface* ieqs)
 	feigned = false;
 	berserk = false;
 	dead = false;
+	initial_z_position = 0;
+	accidentalfall_timer.Disable();
 	is_client_moving = false;
 	eqs = ieqs;
 	ip = eqs->GetRemoteIP();
@@ -809,11 +812,17 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		strcpy(sem->message, message);
 		sem->minstatus = this->Admin();
 		sem->type = chan_num;
-		if(targetname != 0)
-			strcpy(sem->to, targetname);
+		if (targetname != 0)
+		{
+			strncpy(sem->to, targetname, 64);
+			sem->to[63] = 0;
+		}
 
-		if(GetName() != 0)
-			strcpy(sem->from, GetName());
+		if (GetName() != 0)
+		{
+			strncpy(sem->from, GetName(), 64);
+			sem->from[63] = 0;
+		}
 
 		pack->Deflate();
 		if(worldserver.Connected())
@@ -974,11 +983,6 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		break;
 	}
 	case ChatChannel_Tell: { /* Tell */
-			if(GetRevoked())
-			{
-				Message(CC_Default, "You have been revoked. You may not send tells.");
-				return;
-			}
 
 			if(TotalKarma < RuleI(Chat, KarmaGlobalChatLimit))
 			{
@@ -1168,19 +1172,34 @@ void Client::SetMaxHP() {
 	Save();
 }
 
-void Client::SetSkill(EQ::skills::SkillType skillid, uint16 value) {
+void Client::SetSkill(EQ::skills::SkillType skillid, uint16 value, bool silent) {
 	if (skillid > EQ::skills::HIGHEST_SKILL)
 		return;
 	m_pp.skills[skillid] = value; // We need to be able to #setskill 254 and 255 to reset skills
 
 	database.SaveCharacterSkill(this->CharacterID(), skillid, value);
 
-	auto outapp = new EQApplicationPacket(OP_SkillUpdate, sizeof(SkillUpdate_Struct));
-	SkillUpdate_Struct* skill = (SkillUpdate_Struct*)outapp->pBuffer;
-	skill->skillId=skillid;
-	skill->value=value;
-	QueuePacket(outapp);
-	safe_delete(outapp);
+	if (silent) 
+	{
+		// this packet doesn't print a message on the client
+		auto outapp = new EQApplicationPacket(OP_SkillUpdate2, sizeof(SkillUpdate2_Struct));
+		SkillUpdate2_Struct *pkt = (SkillUpdate2_Struct *)outapp->pBuffer;
+		pkt->entity_id = GetID();
+		pkt->skillId = skillid;
+		pkt->value = value;
+		QueuePacket(outapp);
+		safe_delete(outapp);
+	}
+	else
+	{
+		// this packet prints a string: You have become better at %1! (%2)
+		auto outapp = new EQApplicationPacket(OP_SkillUpdate, sizeof(SkillUpdate_Struct));
+		SkillUpdate_Struct *skill = (SkillUpdate_Struct *)outapp->pBuffer;
+		skill->skillId = skillid;
+		skill->value = value;
+		QueuePacket(outapp);
+		safe_delete(outapp);
+	}
 }
 
 void Client::ResetSkill(EQ::skills::SkillType skillid, bool reset_timer) 
@@ -1298,6 +1317,7 @@ void Client::UpdateWho(uint8 remove) {
 	scl->mule = this->IsMule();
 	scl->AFK = this->AFK;
 	scl->Trader = this->IsTrader();
+	scl->Revoked = this->GetRevoked();
 
 	worldserver.SendPacket(pack);
 	safe_delete(pack);
@@ -2314,7 +2334,7 @@ bool Client::BindWound(uint16 bindmob_id, bool start, bool fail)
 		if (bindmob->IsClient()) {
 			Client* bind_client = bindmob->CastToClient();
 			std::string msg;
-			if (bind_client->IsSoloOnly()) {
+			if (bind_client->IsSoloOnly() && this != bind_client) {
 				msg = "This player is running the Solo Only ruleset. You cannot bind wound.";
 			}
 			else if (IsSelfFound() != bind_client->CastToClient()->IsSelfFound()) {
@@ -6402,4 +6422,24 @@ void Client::AddLootedLegacyItem(uint16 item_id)
 	}
 	looted_legacy_items.insert(item_id);
 	
+}
+
+bool Client::RemoveLootedLegacyItem(uint16 item_id)
+{
+	if (!CheckLegacyItemLooted(item_id))
+		return false;
+
+	std::string query = StringFormat("DELETE FROM character_legacy_items WHERE character_id = %i AND item_id = %i", character_id, item_id);
+
+	auto results = database.QueryDatabase(query);
+	if (!results.Success()) {
+		return false;
+	}
+
+	auto it = looted_legacy_items.find(item_id);
+	if (it != looted_legacy_items.end())
+	{
+		looted_legacy_items.erase(it);
+	}
+	return true;
 }

@@ -629,6 +629,9 @@ void Client::CompleteConnect()
 	entity_list.SendIllusionedPlayers(this);
 
 	conn_state = ClientConnectFinished;
+	initial_z_position = m_Position.z;
+	accidentalfall_timer.Enable();
+	accidentalfall_timer.Start(RuleI(Quarm, AccidentalFallTimerMS));
 	database.SetAccountActive(AccountID());
 
 	if (GetGroup())
@@ -2099,6 +2102,13 @@ void Client::Handle_OP_AutoAttack(const EQApplicationPacket *app)
 		return;
 	}
 
+
+	if (Admin() > 0)
+	{
+		Message(CC_Red, "You cannot autoattack as a GM.");
+		return;
+	}
+
 	if (app->pBuffer[0] == 0)
 	{
 		auto_attack = false;
@@ -2589,7 +2599,14 @@ void Client::Handle_OP_CastSpell(const EQApplicationPacket *app)
 		return;
 	}
 
-	if (Admin() > 20 && GetGM() && IsValidSpell(castspell->spell_id)) {
+	if (Admin() > 0)
+	{
+		Message(CC_Red, "You cannot cast spells as a GM.");
+		InterruptSpell(castspell->spell_id);
+		return;
+	}
+
+	if (Admin() > 0 && IsValidSpell(castspell->spell_id)) {
 		Mob* SpellTarget = entity_list.GetMob(castspell->target_id);
 		char szArguments[64];
 		sprintf(szArguments, "ID %i (%s), Slot %i, InvSlot %i", castspell->spell_id, spells[castspell->spell_id].name, castspell->slot, castspell->inventoryslot);
@@ -2779,6 +2796,12 @@ void Client::Handle_OP_ChannelMessage(const EQApplicationPacket *app)
 		std::cout << "Wrong size " << app->size << ", should be " << sizeof(ChannelMessage_Struct) << "+ on 0x" << std::hex << std::setfill('0') << std::setw(4) << app->GetOpcode() << std::dec << std::endl;
 		return;
 	}
+
+	// the client does not process these strings cleanly and if it doesn't crash from it first, it will send the garbage to the server and cause a crash here.
+	cm->targetname[63] = 0;
+	cm->sender[63] = 0;
+	if (app->size > 2184) // size is 136 + strlen(message) + 1 but the client adds an extra 4 bytes to the length when it sends the packet.
+		cm->message[2047] = 0; // the client also does this but only for this message field
 
 	uint8 skill_in_language = 100;
 	if (cm->language < MAX_PP_LANGUAGE)
@@ -3042,82 +3065,85 @@ void Client::Handle_OP_ClientUpdate(const EQApplicationPacket *app)
 		m_Position.z = newPosition.z;
 
 		bSkip = true;
-	}
-	double dist = DistanceNoZ(m_LastLocation, newPosition);
-	double distFromExpected = DistanceNoZ(ExpectedRewindPos, newPosition);
+	}		
 
-	bool shouldTryHackCheck = !exemptHackCount;
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	auto seconds = std::chrono::duration<double>(currentTime - last_position_update_time);
-	auto seccount = seconds.count();
-	auto distDivTime = 0.;
-
-
-	float distFromZonePointThreshold = RuleR(Quarm, SpeedieDistFromZonePointThreshold);
-	float distFromBoatThreshold = RuleR(Quarm, SpeedieDistFromBoatThreshold);
-
-	float distThreshold = RuleR(Quarm, SpeedieDistThreshold);
-	float secondElapsedThreshold = RuleR(Quarm, SpeedieSecondElapsedThreshold);
-	float speedieDistFromExpectedThreshold = RuleR(Quarm, SpeedieDistFromExpectedThreshold);
-	if (dist > distThreshold && seccount >= secondElapsedThreshold)
+	if (RuleB(Quarm, EnableProjectSpeedie))
 	{
-		distDivTime = dist / seccount;
-	}
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		double dist = DistanceNoZ(m_LastLocation, newPosition);
+		double distFromExpected = DistanceNoZ(ExpectedRewindPos, newPosition);
 
-	/*
-		If the PPU was a large jump, such as a cross zone gate or Call of Hero,
-			just update rewind coordinates to the new ppu coordinates. This will prevent exploitation.
-	*/
+		bool shouldTryHackCheck = !exemptHackCount;
+		auto seconds = std::chrono::duration<double>(currentTime - last_position_update_time);
+		auto seccount = seconds.count();
+		auto distDivTime = 0.;
 
-	bool is_exempt_correct = false;
 
-	if (distFromExpected < speedieDistFromExpectedThreshold && ExpectedRewindPos != glm::vec3(0, 0, 0) && !bSkip)
-	{
-		is_exempt_correct = true;
-		ExpectedRewindPos = glm::vec3(0, 0, 0);
-	}
-	auto speed = GetRunspeed();
-	float distDivTimeThreshold = RuleR(Quarm, SpeedieSlowerDistDivTime);
-	float distDivTimeHighSpeedThreshold = RuleR(Quarm, SpeedieHigherDistDivTime);
-	float distDivTimeBardSpeedThreshold = RuleR(Quarm, SpeedieBardDistDivTime);
+		float distFromZonePointThreshold = RuleR(Quarm, SpeedieDistFromZonePointThreshold);
+		float distFromBoatThreshold = RuleR(Quarm, SpeedieDistFromBoatThreshold);
 
-	float highSpeedValueThreshold = RuleR(Quarm, SpeedieHighSpeedThreshold);
-	float bardSpeedValueThreshold = RuleR(Quarm, SpeedieBardSpeedThreshold);
-
-	if (speed >= highSpeedValueThreshold)
-		distDivTimeThreshold = distDivTimeHighSpeedThreshold;
-
-	if (speed >= bardSpeedValueThreshold)
-		distDivTimeThreshold = distDivTimeBardSpeedThreshold;
-
-	bool within_previous_zone_point = false;
-
-	bool has_boat = false;
-	
-	Mob* boat = entity_list.GetMob(BoatID);	// find the mob corresponding to the boat id
-	if (boat) //These lil boats run fast!!
-	{
-		if (DistanceNoZ(boat->GetPosition(), newPosition) < distFromBoatThreshold)
+		float distThreshold = RuleR(Quarm, SpeedieDistThreshold);
+		float secondElapsedThreshold = RuleR(Quarm, SpeedieSecondElapsedThreshold);
+		float speedieDistFromExpectedThreshold = RuleR(Quarm, SpeedieDistFromExpectedThreshold);
+		if (dist > distThreshold && seccount >= secondElapsedThreshold)
 		{
-			has_boat = true;
+			distDivTime = dist / seccount;
 		}
-	}
 
-	if (distDivTime >= distDivTimeThreshold && !is_exempt_correct && !GetGM() && !dead && client_state == CLIENT_CONNECTED && !has_boat)
-	{
+		/*
+			If the PPU was a large jump, such as a cross zone gate or Call of Hero,
+				just update rewind coordinates to the new ppu coordinates. This will prevent exploitation.
+		*/
 
-		ZonePoint* previous_zone_point = zone->GetClosestZonePointSameZone(m_LastLocation.x, m_LastLocation.y, m_LastLocation.z, this, distFromZonePointThreshold);
-		ZonePoint* current_zone_point = zone->GetClosestTargetZonePointSameZone(newPosition.x, newPosition.y, newPosition.z, this, distFromZonePointThreshold);
+		bool is_exempt_correct = false;
 
-		if (!previous_zone_point && !current_zone_point)
+		if (distFromExpected < speedieDistFromExpectedThreshold && ExpectedRewindPos != glm::vec3(0, 0, 0) && !bSkip)
+		{
+			is_exempt_correct = true;
+			ExpectedRewindPos = glm::vec3(0, 0, 0);
+		}
+		auto speed = GetRunspeed();
+		float distDivTimeThreshold = RuleR(Quarm, SpeedieSlowerDistDivTime);
+		float distDivTimeHighSpeedThreshold = RuleR(Quarm, SpeedieHigherDistDivTime);
+		float distDivTimeBardSpeedThreshold = RuleR(Quarm, SpeedieBardDistDivTime);
+
+		float highSpeedValueThreshold = RuleR(Quarm, SpeedieHighSpeedThreshold);
+		float bardSpeedValueThreshold = RuleR(Quarm, SpeedieBardSpeedThreshold);
+
+		if (speed >= highSpeedValueThreshold)
+			distDivTimeThreshold = distDivTimeHighSpeedThreshold;
+
+		if (speed >= bardSpeedValueThreshold)
+			distDivTimeThreshold = distDivTimeBardSpeedThreshold;
+
+		bool within_previous_zone_point = false;
+
+		bool has_boat = false;
+
+		Mob* boat = entity_list.GetMob(BoatID);	// find the mob corresponding to the boat id
+		if (boat) //These lil boats run fast!!
+		{
+			if (DistanceNoZ(boat->GetPosition(), newPosition) < distFromBoatThreshold)
+			{
+				has_boat = true;
+			}
+		}
+
+		if (distDivTime >= distDivTimeThreshold && !is_exempt_correct && !GetGM() && !dead && client_state == CLIENT_CONNECTED && !has_boat)
 		{
 
-			std::string warped = std::string(GetCleanName()) + " - entity moving too fast: dist: " + std::to_string(dist) + ", distDivTime: " + std::to_string(distDivTime) + "playerSpeed: " + std::to_string(speed);
-			worldserver.SendEmoteMessage(0, 0, 250, CC_Default, "%s - entity moving too fast: %lf %lf - is_exempt_correct %s, playerSpeed %lf", GetCleanName(), dist, distDivTime, std::to_string(is_exempt_correct).c_str(), speed);
-			database.SetHackerFlag(this->account_name, this->name, warped.c_str());
+			ZonePoint* previous_zone_point = zone->GetClosestZonePointSameZone(m_LastLocation.x, m_LastLocation.y, m_LastLocation.z, this, distFromZonePointThreshold);
+			ZonePoint* current_zone_point = zone->GetClosestTargetZonePointSameZone(newPosition.x, newPosition.y, newPosition.z, this, distFromZonePointThreshold);
+
+			if (!previous_zone_point && !current_zone_point)
+			{
+
+				std::string warped = std::string(GetCleanName()) + " - entity moving too fast: dist: " + std::to_string(dist) + ", distDivTime: " + std::to_string(distDivTime) + "playerSpeed: " + std::to_string(speed);
+				worldserver.SendEmoteMessage(0, 0, 250, CC_Default, "%s - entity moving too fast: %lf %lf - is_exempt_correct %s, playerSpeed %lf", GetCleanName(), dist, distDivTime, std::to_string(is_exempt_correct).c_str(), speed);
+				//database.SetHackerFlag(this->account_name, this->name, warped.c_str());
+			}
 		}
 	}
-
 
 	if(proximity_timer.Check()) {
 		entity_list.ProcessMove(this, glm::vec3(ppu->x_pos, ppu->y_pos, (float)ppu->z_pos/10.0f));
@@ -3191,12 +3217,15 @@ void Client::Handle_OP_ClientUpdate(const EQApplicationPacket *app)
 	m_Position.y = ppu->y_pos;
 	m_Position.z = (float)ppu->z_pos/10.0f;
 	m_RewindLocation = m_Position;
-	auto current_update_time = std::chrono::high_resolution_clock::now();
-	auto timeDiff = std::chrono::duration<double>(currentTime - last_position_update_time);
-	if (timeDiff.count() >= 1.0)
+	if (RuleB(Quarm, EnableProjectSpeedie))
 	{
-		last_position_update_time = current_update_time;
-		m_LastLocation = m_Position;
+		auto current_update_time = std::chrono::high_resolution_clock::now();
+		auto timeDiff = std::chrono::duration<double>(current_update_time - last_position_update_time);
+		if (timeDiff.count() >= 1.0)
+		{
+			last_position_update_time = current_update_time;
+			m_LastLocation = m_Position;
+		}
 	}
 	//auto old_anim = animation;
 	animation = ppu->anim_type;
@@ -3242,6 +3271,13 @@ void Client::Handle_OP_CombatAbility(const EQApplicationPacket *app)
 {
 	if (app->size != sizeof(CombatAbility_Struct)) {
 		std::cout << "Wrong size on OP_CombatAbility. Got: " << app->size << ", Expected: " << sizeof(CombatAbility_Struct) << std::endl;
+		return;
+	}
+
+
+	if (Admin() > 0)
+	{
+		Message(CC_Red, "You cannot use abilities or thrown items as a GM.");
 		return;
 	}
 
@@ -3724,13 +3760,26 @@ void Client::Handle_OP_Damage(const EQApplicationPacket *app)
 		SendHPUpdate();
 		return;
 	}
-
 	else if (zone->GetZoneID() == tutorial || zone->GetZoneID() == load)
 	{
 		return;
 	}
 	else
 	{
+		if (accidentalfall_timer.Enabled())
+		{
+			if (accidentalfall_timer.Check())
+			{
+				float z_prev = initial_z_position;
+				float z_cur = m_Position.z;
+				if (z_cur <= z_prev + RuleR(Quarm, AccidentalFallUnitDist) || z_cur >= z_prev + -RuleR(Quarm, AccidentalFallUnitDist))
+				{
+					SendHPUpdate();
+					return;
+				}
+			}
+		}
+
 		SetHP(GetHP() - (damage * RuleR(Character, EnvironmentDamageMulipliter)));
 
 		/* EVENT_ENVIRONMENTAL_DAMAGE */
@@ -8292,11 +8341,6 @@ void Client::Handle_OP_SpawnAppearance(const EQApplicationPacket *app)
 	if (sa->type == AT_Invis) {
 		if (sa->parameter != 0)
 		{
-			if (!HasSkill(EQ::skills::SkillHide) && GetSkill(EQ::skills::SkillHide) == 0)
-			{
-				auto hack_str = fmt::format("Player sent OP_SpawnAppearance with AT_Invis: {} ", sa->parameter);
-				database.SetMQDetectionFlag(this->account_name, this->name, hack_str, zone->GetShortName());
-			}
 			return;
 		}
 		CommonBreakInvisNoSneak();
@@ -8685,31 +8729,6 @@ void Client::Handle_OP_TargetCommand(const EQApplicationPacket *app)
 		else if (IsSenseExempted())
 		{
 			SetSenseExemption(false);
-		}
-		else if (GetBindSightTarget())
-		{
-			if (DistanceSquared(GetBindSightTarget()->GetPosition(), new_tar->GetPosition()) > (zone->newzone_data.maxclip*zone->newzone_data.maxclip))
-			{
-				if (DistanceSquared(m_Position, new_tar->GetPosition()) > (zone->newzone_data.maxclip*zone->newzone_data.maxclip + 40000))
-				{
-					auto hacker_str = fmt::format(" {} attempting to target something beyond the clip plane of {:.2f} units,"
-						" from ( {:.2f} , {:.2f} , {:.2f} ) to {} ( {:.2f} , {:.2f} , {:.2f} )", GetName(),
-						(zone->newzone_data.maxclip*zone->newzone_data.maxclip),
-						GetX(), GetY(), GetZ(), new_tar->GetName(), new_tar->GetX(), new_tar->GetY(), new_tar->GetZ());
-					database.SetMQDetectionFlag(AccountName(), GetName(), hacker_str, zone->GetShortName());
-					SendTargetCommand(0);
-					SetTarget(nullptr);
-					return;
-				}
-			}
-		}
-		else if (DistanceSquared(m_Position, new_tar->GetPosition()) > (zone->newzone_data.maxclip*zone->newzone_data.maxclip + 40000))
-		{ // client will allow targeting something just beyond max clip just out of sight, so add another 200 for that.
-			auto hacker_str = fmt::format(" {} attempting to target something beyond the clip plane of {:.2f} units,"
-				" from ( {:.2f} , {:.2f} , {:.2f} to {} ( {:.2f} , {:.2f} , {:.2f} )", GetName(),
-				(zone->newzone_data.maxclip*zone->newzone_data.maxclip),
-				GetX(), GetY(), GetZ(), new_tar->GetName(), new_tar->GetX(), new_tar->GetY(), new_tar->GetZ());
-			database.SetMQDetectionFlag(AccountName(), GetName(), hacker_str, zone->GetShortName());
 		}
 
 		if (new_tar != cur_tar && new_tar != this)

@@ -1434,7 +1434,8 @@ bool Client::Death(Mob* killerMob, int32 damage, uint16 spell, EQ::skills::Skill
 	if(IsClient())
 		CastToClient()->GetExpLoss(killerMob, spell, exploss, killedby);
 
-	SetMana(GetMaxMana());
+	if (killerMob && !killerMob->IsClient() && !killerMob->IsPlayerOwned())
+		SetMana(GetMaxMana());
 
 	uint32 previous_level = GetLevel();
 
@@ -3239,6 +3240,16 @@ void Mob::CommonDamage(Mob* attacker, int32 &damage, const uint16 spell_id, cons
 
 		if(!died)
 			GenerateDamagePackets(attacker, FromDamageShield, damage, spell_id, skill_id, false);
+	}
+	else
+	{
+		if (damage > 0 && spell_id != SPELL_UNKNOWN)
+		{
+			if (attacker && attacker->IsClient() && attacker != this) {
+				attacker->Message_StringID(MT_WornOff, YOUR_HIT_DOT, GetCleanName(), itoa(damage),
+					spells[spell_id].name);
+			}
+		}
 	}
 
 	if (died)

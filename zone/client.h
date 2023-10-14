@@ -628,7 +628,7 @@ public:
 	uint32	GetRawSkill(EQ::skills::SkillType skill_id) const { if (skill_id <= EQ::skills::HIGHEST_SKILL) { return(m_pp.skills[skill_id]); } return 0; }
 	bool	HasSkill(EQ::skills::SkillType skill_id) const;
 	bool	CanHaveSkill(EQ::skills::SkillType skill_id) const;
-	void	SetSkill(EQ::skills::SkillType skill_num, uint16 value);
+	void	SetSkill(EQ::skills::SkillType skill_num, uint16 value, bool silent = false);
 	void	AddSkill(EQ::skills::SkillType skillid, uint16 value);
 	void	CheckSpecializeIncrease(uint16 spell_id);
 	void	CheckSongSkillIncrease(uint16 spell_id);
@@ -1024,6 +1024,7 @@ public:
 	void SetShowHelm(bool value) { m_pp.showhelm = value; }
 	bool SpillBeer();
 	void AddLootedLegacyItem(uint16 item_id);
+	bool RemoveLootedLegacyItem(uint16 item_id);
 	bool CheckLegacyItemLooted(uint16 item_id);
 	void LoadLootedLegacyItems();
 	void ResetSkill(EQ::skills::SkillType skillid, bool reset_timer = false);
@@ -1171,6 +1172,7 @@ private:
 	uint16				BoatID;
 	uint32				account_creation;
 	uint8				firstlogon;
+	float initial_z_position;
 	bool	Trader;
 	std::string	BuyerWelcomeMessage;
 	bool	AbilityTimer;
@@ -1224,6 +1226,7 @@ private:
 	Timer process_timer;
 	Timer stamina_timer;
 	Timer zoneinpacket_timer;
+	Timer accidentalfall_timer;
 	Timer linkdead_timer;
 	Timer dead_timer;
 	Timer global_channel_timer;

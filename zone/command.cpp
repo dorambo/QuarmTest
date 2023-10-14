@@ -349,6 +349,7 @@ int command_init(void)
 		command_add("reloadtraps", "- Repops all traps in the current zone.", AccountStatus::QuestTroupe, command_reloadtraps) ||
 		command_add("reloadworld", "[0|1] - Clear quest cache and reload all rules (0 - no repop, 1 - repop).", AccountStatus::GMImpossible, command_reloadworld) ||
 		command_add("reloadzps", "- Reload zone points from database", AccountStatus::GMLeadAdmin, command_reloadzps) ||
+		command_add("removelegacyitem", "- Remove a legacy item from your target [itemid], or specify a [charid] [itemid] to remove the flag of.", AccountStatus::GMAdmin, command_removelegacyitem) ||
 		command_add("repop", "[delay] - Repop the zone with optional delay.", AccountStatus::GMLeadAdmin, command_repop) ||
 		command_add("repopclose", "[distance in units] Repops only NPC's nearby for fast development purposes", AccountStatus::GMAdmin, command_repopclose) ||
 		command_add("resetaa", "- Resets a Player's AA in their profile and refunds spent AA's to unspent, disconnects player.", AccountStatus::GMImpossible, command_resetaa) ||
@@ -4030,8 +4031,8 @@ void command_corpse(Client *c, const Seperator *sep)
 	std::string help17 = "  #corpse reset - Resets looter status on targetted corpse for debugging.";
 	std::string help18 = "  #corpse backups - List of current target's corpse backups.";
 	std::string help19 = "  #corpse restore [corpse_id] - Summons the specified corpse from a player's backups.";
-
-	std::string help[] = { help0, help1, help2, help3, help4, help5, help6, help7, help8, help9, help10, help11, help12, help13, help14, help15, help16, help17, help18, help19 };
+	std::string help20 = "  #corpse summonall [name] - Summons all of [name]'s oldest buried corpse, if any exist.";
+	std::string help[] = { help0, help1, help2, help3, help4, help5, help6, help7, help8, help9, help10, help11, help12, help13, help14, help15, help16, help17, help18, help19, help20 };
 
 	Mob *target = c->GetTarget();
 
@@ -4334,6 +4335,39 @@ void command_corpse(Client *c, const Seperator *sep)
 		else
 		{
 			c->Message(CC_Default, "Insufficient status to summon backup corpses.");
+		}
+	}
+	else if (strcasecmp(sep->arg[1], "summonall") == 0)
+	{
+		if (sep->arg[2][0] != 0 && !sep->IsNumber(2))
+		{
+			std::string summon_corpse_char_name = sep->arg[2];
+			auto corpse_list_copy = entity_list.GetCorpseList();
+			int nCorpseCount = 0;
+			for (auto corpse : corpse_list_copy)
+			{
+				Corpse* pCorpse = corpse.second;
+				if (pCorpse && pCorpse->IsPlayerCorpse())
+				{
+					if (strcmp(pCorpse->GetOwnerName(), summon_corpse_char_name.c_str()) == 0)
+					{
+						pCorpse->GMMove(c->GetX(), c->GetY(), c->GetZ(), c->GetHeading());
+						nCorpseCount++;
+					}
+				}
+			}
+			if (nCorpseCount > 0)
+			{
+				c->Message(CC_Default, "Summoned %d corpses to your location from player %s", nCorpseCount, summon_corpse_char_name.c_str());
+			}
+			else
+			{
+				c->Message(CC_Red, "No corpses with name %s exist in this zone.", summon_corpse_char_name.c_str());
+			}
+		}
+		else
+		{
+			c->Message(CC_Red, "Invalid character ID or parameter count for #corpse summonall");
 		}
 	}
 	else
@@ -11380,7 +11414,54 @@ void command_betabuff(Client* c, const Seperator* sep)
 	}
 }
 
+void command_removelegacyitem(Client* c, const Seperator* sep) {
+	if (sep->IsNumber(1) && sep->arg[2] == 0)
+	{
+		Mob* target = c->GetTarget();
+		if (target && target->IsClient())
+		{
+			Client* target_client = target->CastToClient();
+			bool res = target_client->RemoveLootedLegacyItem(atoi(sep->arg[1]));
+			if(!res)
+			{
+				c->Message(MT_System, "Unable to remove legacy item %i from %s.", atoi(sep->arg[0]), target->GetCleanName());
+				return;
+			}
+			else
+			{
+				c->Message(MT_System, "Successfully removed legacy item id flag %i from %s.", atoi(sep->arg[0]), target->GetCleanName());
+				return;
+			}
+		}
+		else
+		{
+			c->Message(MT_Shout, "You need a target for this GM command.");
+			return;
+		}
+	}
+	else if (sep->IsNumber(1) && sep->IsNumber(2))
+	{
+		char target_name[64] = { 0 };
+		target_name[0] = '\0';
+		database.GetCharName(atoi(sep->arg[1]), target_name);
+		if (target_name[0] == '\0')
+		{
+			c->Message(MT_Shout, "This is not a valid character to perform this interaction on!");
+			return;
+		}
 
+		std::string query = StringFormat("DELETE FROM character_legacy_items WHERE character_id = %i AND item_id = %i", atoi(sep->arg[1]), atoi(sep->arg[2]));
+
+		auto results = database.QueryDatabase(query);
+		if (!results.Success()) {
+			c->Message(MT_System, "Unable to run query!");
+			return;
+		}
+		c->Message(MT_System, "Successfully attempted to remove legacy item id flag %i from %s.", sep->arg[2], target_name);
+		return;
+	}
+	c->Message(MT_Shout, "Usage: #removelegacyitem [charid] [itemid] or #removelegacyitem [itemid] with a Client targeted.");
+}
 
 //Please keep this at the bottom of command.cpp! Feel free to use this for temporary commands used in testing :)
 void command_testcommand(Client *c, const Seperator *sep)
