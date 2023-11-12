@@ -243,6 +243,9 @@ RULE_INT(Quarm, BardDamagingAOECap, 4)
 RULE_BOOL(Quarm, CorpseUnlockIsHalvedDecayTime, true)
 RULE_INT(Quarm, AccidentalFallTimerMS, 15000) // Length of initial zonein fall protection, in MS.
 RULE_REAL(Quarm, AccidentalFallUnitDist, 50.0) // Length of initial zonein fall protection, in MS.
+RULE_INT(Quarm, AutomatedRaidRotationRaidGuildLevelRequirement, 30) // Required level to participate in raid content.
+RULE_INT(Quarm, AutomatedRaidRotationRaidGuildMemberCountRequirement, 12) // Required amount of members to participate in a raid encounter. Not all of these must be in the same guild (see below rule.)
+RULE_INT(Quarm, AutomatedRaidRotationRaidNonMemberCountRequirement, 18) // Required amount of same-guild members to participate in a raid encounter. These must be in the same guild, and one officer from the current guild must be in the raid.
 RULE_CATEGORY_END()
 
 RULE_CATEGORY( Map )
