@@ -872,6 +872,9 @@ Zone::Zone(uint32 in_zoneid, const char* in_short_name)
 	Weather_Timer->Start();
 	EndQuake_Timer = new Timer(60000);
 	EndQuake_Timer->Disable();
+	RotationRespawns_Timer = new Timer(30000);
+	RotationRespawns_Timer->Start();
+
 	LogInfo("The next weather check for zone: {} will be in {} seconds.", short_name, Weather_Timer->GetRemainingTime() / 1000);
 	zone_weather = 0;
 	weather_intensity = 0;
@@ -936,6 +939,7 @@ Zone::~Zone() {
 	safe_delete_array(long_name);
 	safe_delete(Weather_Timer);
 	safe_delete(EndQuake_Timer);
+	safe_delete(RotationRespawns_Timer);
 	ClearNPCEmotes(&NPCEmoteList);
 	zone_point_list.Clear();
 	entity_list.Clear();
@@ -1586,6 +1590,24 @@ bool Zone::ResetEngageNotificationTargets(uint32 in_respawn_timer)
 		iterator.Advance();
 	}
 	return true;
+}
+
+void Zone::ChangeRaidRotationSpawnStatus(bool enable_spawns, uint32 rotation_id, uint32 in_despawn_timer)
+{
+	bool reset_at_least_one_spawn2 = false;
+	LinkedListIterator<Spawn2*> iterator(spawn2_list);
+
+	iterator.Reset();
+	while (iterator.MoreElements()) {
+		Spawn2* pSpawn2 = iterator.GetData();
+		if (rotation_id != 0 && pSpawn2->GetRaidRotationID() != 0 && pSpawn2->GetRaidRotationID() == rotation_id || rotation_id == 0 && pSpawn2->GetRaidRotationID() != 0)
+		{
+			reset_at_least_one_spawn2 = true;
+			pSpawn2->ChangeRaidRotationSpawnStatus(enable_spawns, in_despawn_timer); // milliseconds
+		}
+		iterator.Advance();
+	}
+	return;
 }
 
 void Zone::Repop() {

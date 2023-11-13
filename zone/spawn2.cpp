@@ -37,14 +37,15 @@ Spawn2::Spawn2(uint32 in_spawn2_id, uint32 spawngroup_id,
 	float in_x, float in_y, float in_z, float in_heading,
 	uint32 respawn, uint32 variance, uint32 timeleft, uint32 grid,
 	uint16 in_cond_id, int16 in_min_value, bool in_enabled, EmuAppearance anim, 
-	bool in_force_z, bool in_rand_spawn, bool in_raid_target_spawnpoint)
-: timer(100000), killcount(0)
+	bool in_force_z, bool in_rand_spawn, bool in_raid_target_spawnpoint, uint32 in_rotation_id)
+: timer(100000), despawn_timer(100000), killcount(0)
 {
 	spawn2_id = in_spawn2_id;
 	spawngroup_id_ = spawngroup_id;
 	x = in_x;
 	y = in_y;
 	z = in_z;
+	rotation_id = in_rotation_id;
 	heading = in_heading;
 	respawn_ = respawn;
 	variance_ = variance;
@@ -58,11 +59,20 @@ Spawn2::Spawn2(uint32 in_spawn2_id, uint32 spawngroup_id,
 	rand_spawn = in_rand_spawn;
 	raid_target_spawnpoint = in_raid_target_spawnpoint;
 	last_level_attempt = 0;
+	currentnpcid = 0;
+	IsDespawned = false;
+	is_raid_rotation_npc_spawned = false;
+	is_raid_rotation_spawn_enabled = false;
+	despawn_timer.Disable();
 
 	if(timeleft == 0xFFFFFFFF) 
 	{
 		//special disable timeleft
 		timer.Disable();
+	}
+	else if (rotation_id != 0)
+	{
+		timer.Start(5000);
 	}
 	else if(timeleft != 0)
 	{
@@ -152,6 +162,50 @@ uint32 Spawn2::despawnTimer(uint32 despawn_timer)
 
 }
 
+void Spawn2::ProcessRaidRotationSpawn()
+{
+	if (rotation_id == 0)
+		return;
+
+	if (despawn_timer.Check(false))
+	{
+		if (NPCPointerValid())
+		{
+			npcthis->Depop();
+		}
+		despawn_timer.Disable();
+		is_raid_rotation_npc_spawned = false;
+	}
+
+	return;
+}
+
+void Spawn2::ChangeRaidRotationSpawnStatus(bool enabled, uint32 in_despawn_timer)
+{
+	if(rotation_id == 0)
+		return;
+
+	if (NPCPointerValid())
+	{
+		if (npcthis != nullptr)
+		{
+			npcthis->Depop();
+		}
+		is_raid_rotation_npc_spawned = false;
+	}
+
+	despawn_timer.Disable();
+	timer.Disable();
+
+	if (enabled)
+	{
+		despawn_timer.Start(in_despawn_timer);
+		timer.Start(1000);
+	}
+
+	is_raid_rotation_spawn_enabled = enabled;
+}
+
 bool Spawn2::Process() {
 	IsDespawned = false;
 
@@ -161,10 +215,25 @@ bool Spawn2::Process() {
 	//grab our spawn group
 	SpawnGroup* spawn_group = zone->spawn_group_list.GetSpawnGroup(spawngroup_id_);
 
-	if(NPCPointerValid() && (spawn_group && spawn_group->despawn == 0 || condition_id != 0))
+	if (NPCPointerValid() && (spawn_group && spawn_group->despawn == 0 || condition_id != 0))
+	{
+		if (rotation_id != 0)
+		{
+			ProcessRaidRotationSpawn();
+		}
+		return true;
+	}
+
+	if (rotation_id != 0 && !is_raid_rotation_spawn_enabled)
+	{
+		return true;
+	}
+
+	if (rotation_id != 0 && is_raid_rotation_npc_spawned)
 		return true;
 
 	if (timer.Check()) {
+
 		timer.Disable();
 
 		Log(Logs::Detail, Logs::Spawns, "Spawn2 %d: Timer has triggered", spawn2_id);
@@ -313,6 +382,9 @@ bool Spawn2::Process() {
 		entity_list.AddNPC(npc);
 		//this limit add must be done after the AddNPC since we need the entity ID.
 		entity_list.LimitAddNPC(npc);
+
+		is_raid_rotation_npc_spawned = true;
+
 		if (spawn_group->roamdist && spawn_group->roambox[0] && spawn_group->roambox[1] && spawn_group->roambox[2] && spawn_group->roambox[3] && spawn_group->delay && spawn_group->min_delay)
 			npc->AI_SetRoambox(spawn_group->roambox[0], spawn_group->roambox[1], spawn_group->roambox[2], spawn_group->roambox[3], spawn_group->delay, spawn_group->min_delay);
 		Log(Logs::General, Logs::Spawns, "Spawn2 %d: Group %d spawned %s (%d) at (%.3f, %.3f, %.3f).", spawn2_id, spawngroup_id_, npc->GetName(), npcid, loc.x, loc.y, loc.z);
@@ -326,6 +398,7 @@ void Spawn2::Disable(bool depop)
 	if(depop && npcthis)
 	{
 		npcthis->Depop();
+		is_raid_rotation_npc_spawned = false;
 	}
 	enabled = false;
 }
@@ -370,6 +443,7 @@ void Spawn2::Reset(uint32 rtime) {
 		timer.Start(resetTimer());
 	}
 	npcthis = nullptr;
+	is_raid_rotation_npc_spawned = false;
 	Log(Logs::Detail, Logs::Spawns, "Spawn2 %d: Spawn reset, repop in %d ms", spawn2_id, timer.GetRemainingTime());
 }
 
@@ -377,6 +451,7 @@ void Spawn2::Depop() {
 	timer.Disable();
 	Log(Logs::Detail, Logs::Spawns, "Spawn2 %d: Spawn reset, repop disabled", spawn2_id);
 	npcthis = nullptr;
+	is_raid_rotation_npc_spawned = false;
 }
 
 void Spawn2::Repop(uint32 delay) {
@@ -485,11 +560,17 @@ void Spawn2::DeathReset(bool realdeath)
 
 	//zero out our NPC since he is now gone
 	npcthis = nullptr;
+	is_raid_rotation_npc_spawned = false;
 
 	if(realdeath) { killcount++; }
 
+	//Do raid rotation reset logic on:
+	if (rotation_id != 0)
+	{
+		//do logic on rotation by spawn2_id, commit to db
+	}
 	//if we have a valid spawn id
-	if(spawn2_id)
+	else if(spawn2_id)
 	{
 		database.UpdateRespawnTime(spawn2_id, (cur/1000));
 		Log(Logs::General, Logs::Spawns, "Spawn2 %d: Spawn reset by death, repop in %d ms", spawn2_id, timer.GetRemainingTime());
@@ -546,7 +627,8 @@ bool ZoneDatabase::PopulateZoneSpawnListClose(uint32 zoneid, LinkedList<Spawn2*>
 		"enabled, "
 		"animation, "
 		"force_z, "
-		"raid_target_spawnpoint "
+		"raid_target_spawnpoint, "
+		"rotation_id "
 		"FROM "
 		"spawn2 "
 		"AND ((%.2f >= min_expansion AND %.2f < max_expansion) OR (min_expansion = 0 AND max_expansion = 0))",
@@ -595,7 +677,8 @@ bool ZoneDatabase::PopulateZoneSpawnListClose(uint32 zoneid, LinkedList<Spawn2*>
 			(EmuAppearance)atoi(row[12]),				   // EmuAppearance anim
 			atobool(row[13]),							   // bool force_z
 			false,
-			atobool(row[14])							   // bool raid_target_spawnpoint
+			atobool(row[14]),							   // bool raid_target_spawnpoint
+			atoi(row[15])							   // bool raid_target_spawnpoint
 			);
 
 		spawn2_list.Insert(new_spawn);
@@ -654,7 +737,8 @@ bool ZoneDatabase::PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spa
 		"enabled, "
 		"animation, "
 		"force_z, "
-		"raid_target_spawnpoint "
+		"raid_target_spawnpoint, "
+		"rotation_id "
 		"FROM "
 		"spawn2 "
 		"WHERE zone = '%s' AND ((%.2f >= min_expansion AND %.2f < max_expansion) OR (min_expansion = 0 AND max_expansion = 0))",
@@ -694,7 +778,8 @@ bool ZoneDatabase::PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spa
 			(EmuAppearance)atoi(row[12]),				   // EmuAppearance anim
 			atobool(row[13]),							   // bool force_z
 			false,
-			atobool(row[14])							   // bool raid_target_spawnpoint
+			atobool(row[14]),							   // bool raid_target_spawnpoint
+			atoi(row[15]) 								   // int32 rotation_id
 		);
 
 		spawn2_list.Insert(new_spawn);
@@ -753,7 +838,8 @@ bool ZoneDatabase::PopulateRandomZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*
 					eaStanding,									   // EmuAppearance anim
 					true,										   // bool force_z
 					true,										   // bool rand_spawn		
-					false										   // bool raid_target_spawnpoint
+					false,										   // bool raid_target_spawnpoint
+					0
 				);
 
 				spawn2_list.Insert(new_spawn);

@@ -34,7 +34,7 @@ public:
 		uint32 respawn, uint32 variance,
 		uint32 timeleft = 0, uint32 grid = 0,
 		uint16 cond_id = SC_AlwaysEnabled, int16 min_value = 0, bool in_enabled = true, EmuAppearance anim = eaStanding, 
-		bool force_z = false, bool rand_spawn = false, bool raid_target_spawnpoint = false);
+		bool force_z = false, bool rand_spawn = false, bool raid_target_spawnpoint = false, uint32 in_rotation_id = 0);
 	~Spawn2();
 
 	void	LoadGrid(int start_wp = 0);
@@ -48,6 +48,8 @@ public:
 	void	Repop(uint32 delay = 0);
 	void	ForceDespawn();
 	void	ChangeDespawn(uint8 newval, uint32 despawn_timer = 0);
+
+	void	ProcessRaidRotationSpawn();
 
 	void	DeathReset(bool realdeath = 0); //resets the spawn in the case the npc dies, also updates db if needed
 
@@ -64,12 +66,24 @@ public:
 	uint32	SpawnGroupID() { return spawngroup_id_; }
 	uint32	CurrentNPCID() { return currentnpcid; }
 	void	SetCurrentNPCID(uint32 nid) { currentnpcid = nid; }
+
+	//Rotation Get/Set
+
+	//Spawned status
+	uint32	GetRaidRotationSpawnFlag() { return is_raid_rotation_spawn_enabled; }
+	void	SetRaidRotationSpawnFlag(bool in_raid_rotation_spawned) { is_raid_rotation_spawn_enabled = in_raid_rotation_spawned; }
+	//ID
+	uint32	GetRaidRotationID() { return rotation_id; }
+
+	void	ChangeRaidRotationSpawnStatus(bool enabled, uint32 in_despawn_timer);
+
 	uint32	GetSpawnCondition() { return condition_id; }
 
 	bool	NPCPointerValid() { return (npcthis!=nullptr); }
 	void	SetNPCPointer(NPC* n) { npcthis = n; }
 	NPC*	GetNPCPointer() { return npcthis; }
 	void	SetTimer(uint32 duration) { timer.Start(duration, false); }
+	void	SetDespawnTimer(uint32 duration) { despawn_timer.Start(duration, false); }
 	uint32  GetKillCount() { return killcount; }
 	bool	GetForceZ() { return force_z; }
 	bool	IsRaidTargetSpawnpoint() { return raid_target_spawnpoint; }
@@ -77,6 +91,8 @@ protected:
 	friend class Zone;
 	friend class SpawnGroup;
 	Timer	timer;
+
+	Timer	despawn_timer;
 private:
 	uint32	spawn2_id;
 	uint32	respawn_;
@@ -98,10 +114,13 @@ private:
 	bool enabled;
 	EmuAppearance anim;
 	bool IsDespawned;
+	bool is_raid_rotation_spawn_enabled;
+	bool is_raid_rotation_npc_spawned;
 	uint32  killcount;
 	bool force_z;
 	bool rand_spawn;
 	bool raid_target_spawnpoint;
+	uint32 rotation_id;
 };
 
 class SpawnCondition {
