@@ -382,7 +382,8 @@ bool Spawn2::Process() {
 		entity_list.AddNPC(npc);
 		//this limit add must be done after the AddNPC since we need the entity ID.
 		entity_list.LimitAddNPC(npc);
-
+		if(rotation_id != 0)
+			npc->SetRotationID(rotation_id);
 		is_raid_rotation_npc_spawned = true;
 
 		if (spawn_group->roamdist && spawn_group->roambox[0] && spawn_group->roambox[1] && spawn_group->roambox[2] && spawn_group->roambox[3] && spawn_group->delay && spawn_group->min_delay)
@@ -678,7 +679,7 @@ bool ZoneDatabase::PopulateZoneSpawnListClose(uint32 zoneid, LinkedList<Spawn2*>
 			atobool(row[13]),							   // bool force_z
 			false,
 			atobool(row[14]),							   // bool raid_target_spawnpoint
-			atoi(row[15])							   // bool raid_target_spawnpoint
+			atoi(row[15])								   // uint32 rotation_id
 			);
 
 		spawn2_list.Insert(new_spawn);
@@ -779,7 +780,7 @@ bool ZoneDatabase::PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spa
 			atobool(row[13]),							   // bool force_z
 			false,
 			atobool(row[14]),							   // bool raid_target_spawnpoint
-			atoi(row[15]) 								   // int32 rotation_id
+			atoi(row[15]) 								   // uint32 rotation_id
 		);
 
 		spawn2_list.Insert(new_spawn);
@@ -839,7 +840,7 @@ bool ZoneDatabase::PopulateRandomZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*
 					true,										   // bool force_z
 					true,										   // bool rand_spawn		
 					false,										   // bool raid_target_spawnpoint
-					0
+					0											   // uint32 rotation_id
 				);
 
 				spawn2_list.Insert(new_spawn);

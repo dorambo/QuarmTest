@@ -197,6 +197,29 @@ struct Door {
 	bool	can_open;
 };
 
+struct RaidRotation_Struct
+{
+	uint32 id;
+	char rotation_name[256];
+	uint32 time_per_rotation;
+	uint32 time_per_tryout;
+};
+
+struct RaidRotationGuild_Struct
+{
+	uint32 rotation_id; // raidrotation_struct
+	uint32 guild_id; // from guilds.h
+	uint32 time_per_rotation; // time for each rotation to remain spawned
+	uint32 time_per_tryout; // time before we consider a raid rotation failed.
+};
+
+struct RotationEntry_Struct
+{
+	uint32 rotation_id; // raidrotation_struct
+	uint32 spawn2_id; // from guilds.h
+	uint8 killed; // is mob killed as part of cycle yet
+};
+
 #pragma pack()
 
 #endif

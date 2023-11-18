@@ -250,6 +250,8 @@ NPC::NPC(const NPCType* d, Spawn2* in_respawn, const glm::vec4& position, int if
 
 	npc_aggro = d->npc_aggro;
 
+	rotation_id = 0;
+
 	d_melee_texture1 = d->d_melee_texture1;
 	d_melee_texture2 = d->d_melee_texture2;
 	memset(equipment, 0, sizeof(equipment));
@@ -2807,4 +2809,9 @@ void NPC::ProcessFTE()
 			raid_fte = 0;
 		}
 	}
+}
+
+void NPC::SetRotationID(uint32 in_rotation_id)
+{
+	rotation_id = in_rotation_id;
 }

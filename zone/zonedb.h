@@ -322,7 +322,7 @@ public:
 	/* Spawns and Spawn Points  */
 	bool		LoadSpawnGroups(const char* zone_name, SpawnGroupList* spawn_group_list);
 	bool		LoadSpawnGroupsByID(int spawngroupid, SpawnGroupList* spawn_group_list);
-	bool		PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list);
+	bool		PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list, std::vector<std::pair<uint32, );
 	bool		PopulateZoneSpawnListClose(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list, const glm::vec4& client_position, uint32 repop_distance);
 	bool		PopulateRandomZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list);
 	bool		CreateSpawn2(Client *c, uint32 spawngroup, const char* zone, const glm::vec4& position, uint32 respawn, uint32 variance, uint16 condition, int16 cond_value);

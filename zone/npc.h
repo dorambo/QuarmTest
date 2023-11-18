@@ -467,6 +467,10 @@ public:
 	uint32 solo_group_fte;
 	uint32 solo_fte_charid;
 
+
+	void SetRotationID(uint32 in_rotation_id);
+	uint32 GetRotationID() { return rotation_id; }
+
 	bool ValidateFTE();
 
 	std::string GetSpawnedString();
@@ -584,6 +588,8 @@ protected:
 	bool private_corpse; 
 	bool aggro_pc;
 	bool underwater; 
+
+	uint32 rotation_id;
 
 	bool engage_notice;
 
