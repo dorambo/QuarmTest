@@ -246,6 +246,11 @@ RULE_REAL(Quarm, AccidentalFallUnitDist, 50.0) // Length of initial zonein fall 
 RULE_INT(Quarm, AutomatedRaidRotationRaidGuildLevelRequirement, 30) // Required level to participate in raid content.
 RULE_INT(Quarm, AutomatedRaidRotationRaidGuildMemberCountRequirement, 12) // Required amount of members to participate in a raid encounter. Not all of these must be in the same guild (see below rule.)
 RULE_INT(Quarm, AutomatedRaidRotationRaidNonMemberCountRequirement, 18) // Required amount of same-guild members to participate in a raid encounter. These must be in the same guild, and one officer from the current guild must be in the raid.
+RULE_BOOL(Quarm, ThanksgivingExpBonus, false)
+RULE_REAL(Quarm, ThanksgivingExpBonusOutdoorAmt, 0.20)
+RULE_REAL(Quarm, FlyingRaceExpBonus, 0.50)
+RULE_INT(Quarm, AntiSpamMuteInSeconds, 900) // Defaults to 15 minutes. Live will likely adjust this
+RULE_BOOL(Quarm, EnableNPCProximityAggroSystem, false) // Classic behavior is true. Live Quarm has this false by default. CSR complaints about training warranted this behavior.
 RULE_CATEGORY_END()
 
 RULE_CATEGORY( Map )
@@ -388,6 +393,7 @@ RULE_INT ( Chat, MaxMessagesBeforeKick, 60)
 RULE_INT ( Chat, IntervalDurationMS, 60000)
 RULE_INT ( Chat, KarmaUpdateIntervalMS, 120000)
 RULE_INT ( Chat, KarmaGlobalChatLimit, 12) //amount of karma you need to be able to talk in ooc/auction/chat below the level limit
+RULE_INT ( Chat, KarmaGlobalChatLevelLimit, 8) //level limit you need to of reached to talk in ooc/auction/chat if your karma is too low.
 RULE_INT ( Chat, GlobalChatLevelLimit, 8) //level limit you need to of reached to talk in ooc/auction/chat if your karma is too low.
 RULE_CATEGORY_END()
 

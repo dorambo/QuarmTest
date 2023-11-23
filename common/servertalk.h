@@ -690,7 +690,7 @@ struct ServerLockZone_Struct {
 struct RevokeStruct {
 	char adminname[64];
 	char name[64];
-	int8 toggle; //0 off 1 on
+	int8 toggle; //0 off, 1 on except guild/group/raid, 2 also revoke guild/group/raid
 };
 
 struct ServerGroupIDReply_Struct {
@@ -939,9 +939,11 @@ struct ServerMailMessageHeader_Struct {
 };
 
 struct Server_Speech_Struct {
-	char	to[64];
+	char	to[325]; // store up to 5 names of size 64, and 4 commas + 1 null terminator
 	char	from[64];
 	uint32	guilddbid;
+	uint32	groupid;
+	uint32	characterid;
 	int16	minstatus;
 	uint32	type;
 	char	message[0];

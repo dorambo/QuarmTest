@@ -155,9 +155,9 @@ Client::Client(EQStreamInterface* ieqs)
 {
 	for(int cf=0; cf < _FilterCount; cf++)
 		ClientFilters[cf] = FilterShow;
-
+	
 	for (int aa_ix = 0; aa_ix < MAX_PP_AA_ARRAY; aa_ix++) { aa[aa_ix] = nullptr; }
-
+	
 	character_id = 0;
 	zoneentry = nullptr;
 	conn_state = NoPacketsReceived;
@@ -776,7 +776,7 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 				{
 					if(AttemptedMessages > RuleI(Chat, MaxMessagesBeforeKick))
 					{
-						Kick();
+						RevokeSelf();
 						return;
 					}
 					if(GlobalChatLimiterTimer)
@@ -805,14 +805,76 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 		else
 			sem->guilddbid = 0;
 
+		auto group = GetGroup();
+		if (group && chan_num == ChatChannel_Group) {
+			sem->groupid = group->GetID();
+			std::string groupMembers = group->GetMemberNamesAsCsv({ GetName() });
+			strncpy(sem->to, groupMembers.c_str(), 325);
+			sem->to[324] = 0;
+		}
+		else {
+			sem->groupid = 0;
+		}
+
+		sem->characterid = CharacterID();
+
 		strcpy(sem->message, message);
 		sem->minstatus = this->Admin();
 		sem->type = chan_num;
-		if (targetname != 0)
+
+		// => to: preserve the targetname if it's not empty
+		//     => tells for example will have a targetname already
+		// => to: use the guild name if the channel is guild
+		// => to: use the zone short name if the channel is auction, ooc, or shout
+		// => to: use the target name if the channel is not guild, auction, ooc, shout, broadcast, raid, or petition
+		bool targetNameIsEmpty = targetname == nullptr || strlen(targetname) == 0;
+		char logTargetName[64] = { 0 };
+		if (targetNameIsEmpty) {
+			switch (chan_num) {
+				case ChatChannel_Guild: {
+					std::string guildName = GetGuildName();
+					const char* temp = guildName.c_str();
+					strncpy(logTargetName, temp, 64);
+					logTargetName[63] = 0;
+				}
+				break;
+
+				case ChatChannel_Auction:
+				case ChatChannel_OOC:
+				case ChatChannel_Shout: {
+					if (zone) {
+						const char* temp = zone->GetShortName();
+						strncpy(logTargetName, temp, 64);
+						logTargetName[63] = 0;
+					}
+				}
+				break;
+
+				case ChatChannel_Broadcast:
+				case ChatChannel_Raid:
+				case ChatChannel_Petition:
+					break;
+
+				default: {
+					const char* temp = (!GetTarget()) ? "" : GetTarget()->GetName();
+					strncpy(logTargetName, temp, 64);
+					logTargetName[63] = 0;
+				}
+				break;
+			}
+		}
+		else {
+			strncpy(logTargetName, targetname, 64);
+			logTargetName[63] = 0;
+		}
+
+		// => if groupid is not 0, sem->to has already been filled with the group members
+		if (sem->groupid == 0 && strlen(logTargetName) != 0)
 		{
-			strncpy(sem->to, targetname, 64);
+			strncpy(sem->to, logTargetName, 64);
 			sem->to[63] = 0;
 		}
+		// ----------------------------------------------
 
 		if (GetName() != 0)
 		{
@@ -918,7 +980,7 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 
 			if(TotalKarma < RuleI(Chat, KarmaGlobalChatLimit))
 			{
-				if(GetLevel() < RuleI(Chat, GlobalChatLevelLimit))
+				if(GetLevel() < RuleI(Chat, KarmaGlobalChatLevelLimit))
 				{
 					Message(CC_Default, "You do not have permission to talk in Auction at this time.");
 					return;
@@ -965,7 +1027,7 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 
 			if(TotalKarma < RuleI(Chat, KarmaGlobalChatLimit))
 			{
-				if(GetLevel() < RuleI(Chat, GlobalChatLevelLimit))
+				if(GetLevel() < RuleI(Chat, KarmaGlobalChatLevelLimit))
 				{
 					Message(CC_Default, "You do not have permission to talk in OOC at this time.");
 					return;
@@ -998,11 +1060,17 @@ void Client::ChannelMessageReceived(uint8 chan_num, uint8 language, uint8 lang_s
 	}
 	case ChatChannel_Tell: { /* Tell */
 
+			if (GetLevel() < RuleI(Chat, GlobalChatLevelLimit))
+			{
+				Message(CC_Default, "You do not have permission to send tells until level %i.", RuleI(Chat, GlobalChatLevelLimit));
+				return;
+			}
+
 			if(TotalKarma < RuleI(Chat, KarmaGlobalChatLimit))
 			{
-				if(GetLevel() < RuleI(Chat, GlobalChatLevelLimit))
+				if(GetLevel() < RuleI(Chat, KarmaGlobalChatLevelLimit))
 				{
-					Message(CC_Default, "You do not have permission to send tells at this time.");
+					Message(CC_Default, "You do not have permission to send tells.");
 					return;
 				}
 			}
@@ -6368,6 +6436,24 @@ bool Client::RemoveLootedLegacyItem(uint16 item_id)
 		looted_legacy_items.erase(it);
 	}
 	return true;
+}
+
+void Client::RevokeSelf()
+{
+	if (GetRevoked())
+		return;
+
+	Message(CC_Red, "You have been server muted for %i seconds for violating the anti-spam filter.", RuleI(Quarm, AntiSpamMuteInSeconds));
+
+	std::string warped = "GM Alert: [" + std::string(GetCleanName()) + "] has violated the anti-spam filter.";
+	worldserver.SendEmoteMessage(0, 0, 100, CC_Default, "%s", warped.c_str());
+
+	std::string query = StringFormat("UPDATE account SET revoked = 1 WHERE id = %i", AccountID());
+	SetRevoked(1);
+	database.QueryDatabase(query);
+
+	std::string query2 = StringFormat("UPDATE `account` SET `revokeduntil` = DATE_ADD(NOW(), INTERVAL %i SECOND) WHERE `id` = %i", RuleI(Quarm, AntiSpamMuteInSeconds), AccountID());
+	auto results2 = database.QueryDatabase(query2);
 }
 
 

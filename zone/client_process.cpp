@@ -82,7 +82,7 @@ bool Client::Process() {
 		return false; //delete client
 	}
 
-	if (ClientDataLoaded() && (Connected() || IsLD()))
+	if(ClientDataLoaded() && (Connected() || IsLD()))
 	{
 		// try to send all packets that weren't sent before
 		if(!IsLD() && zoneinpacket_timer.Check())
@@ -610,7 +610,7 @@ bool Client::Process() {
 	//At this point, we are still connected, everything important has taken
 	//place, now check to see if anybody wants to aggro us.
 	// only if client is not feigned
-	if (ClientDataLoaded() && ret && scanarea_timer.Check()) {
+	if(ClientDataLoaded() && ret && scanarea_timer.Check()) {
 		entity_list.CheckClientAggro(this);
 	}
 
