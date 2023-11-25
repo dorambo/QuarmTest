@@ -204,6 +204,7 @@ struct RaidRotation_Struct
 	uint32 time_per_rotation;
 	uint32 time_per_tryout;
 	uint64 rotation_start_time;
+	uint64 remaining_rotation_time;
 };
 
 struct RaidRotationGuild_Struct

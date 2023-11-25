@@ -214,6 +214,7 @@ public:
 	void	GetTimeSync();
 	void	SetDate(uint16 year, uint8 month, uint8 day, uint8 hour, uint8 minute);
 	void	SetTime(uint8 hour, uint8 minute);
+	void	SetRaidRotationTimer(unsigned int nSeconds);
 
 	bool	process_mobs_while_empty;
 	void	weatherSend(uint32 timer = 0);
@@ -237,8 +238,8 @@ public:
 	std::vector<GridRepository::Grid> grids;
 	std::vector<GridEntriesRepository::GridEntries> grid_entries;
 
-	std::vector<RaidRotation_Struct> raid_rotations;
-	std::vector<RaidRotationGuild_Struct> raid_rotation_entries;
+	RaidRotation_Struct raid_rotations;
+	RaidRotationGuild_Struct current_rotation_guild;
 
 	time_t	weather_timer;
 	uint8	weather_intensity;
@@ -246,7 +247,6 @@ public:
 
 	ServerEarthquakeImminent_Struct last_quake_struct;
 	Timer*	EndQuake_Timer;
-
 
 	Timer*	RotationRespawns_Timer;
 

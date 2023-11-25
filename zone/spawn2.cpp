@@ -215,7 +215,7 @@ bool Spawn2::Process() {
 	//grab our spawn group
 	SpawnGroup* spawn_group = zone->spawn_group_list.GetSpawnGroup(spawngroup_id_);
 
-	if (NPCPointerValid() && (spawn_group && spawn_group->despawn == 0 || condition_id != 0))
+	if (NPCPointerValid() && (spawn_group && spawn_group->despawn == 0 || condition_id != 0) && rotation_id != 0 && is_raid_rotation_spawn_enabled)
 	{
 		if (rotation_id != 0)
 		{
@@ -382,9 +382,11 @@ bool Spawn2::Process() {
 		entity_list.AddNPC(npc);
 		//this limit add must be done after the AddNPC since we need the entity ID.
 		entity_list.LimitAddNPC(npc);
-		if(rotation_id != 0)
+		if (rotation_id != 0)
+		{
 			npc->SetRotationID(rotation_id);
-		is_raid_rotation_npc_spawned = true;
+			is_raid_rotation_npc_spawned = true;
+		}
 
 		if (spawn_group->roamdist && spawn_group->roambox[0] && spawn_group->roambox[1] && spawn_group->roambox[2] && spawn_group->roambox[3] && spawn_group->delay && spawn_group->min_delay)
 			npc->AI_SetRoambox(spawn_group->roambox[0], spawn_group->roambox[1], spawn_group->roambox[2], spawn_group->roambox[3], spawn_group->delay, spawn_group->min_delay);
@@ -566,9 +568,10 @@ void Spawn2::DeathReset(bool realdeath)
 	if(realdeath) { killcount++; }
 
 	//Do raid rotation reset logic on:
-	if (rotation_id != 0)
+	if (spawn2_id && rotation_id != 0)
 	{
-		//do logic on rotation by spawn2_id, commit to db
+		database.UpdateRotationKilled(spawn2_id, true);
+		ChangeRaidRotationSpawnStatus(false, 0);
 	}
 	//if we have a valid spawn id
 	else if(spawn2_id)
@@ -784,6 +787,11 @@ bool ZoneDatabase::PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spa
 		);
 
 		spawn2_list.Insert(new_spawn);
+	}
+	if (zone)
+	{
+		zone->raid_rotations = database.LoadZoneRotation(zone->GetZoneID());
+		database.LoadZoneRotationSpawnAssociation(zone->raid_rotations, spawn2_list);
 	}
 
 	return true;
@@ -1601,6 +1609,18 @@ bool SpawnConditionManager::Check(uint16 condition, int16 min_value) {
 	SpawnCondition &cond = condi->second;
 
 	return(cond.value >= min_value);
+}
+
+void ZoneDatabase::UpdateRotationKilled(uint32 spawn2_id, bool bKilled)
+{
+	std::string query = StringFormat("UPDATE `rotation_entries` SET killed = %i WHERE `spawn2_id` = %i", spawn2_id);
+	QueryDatabase(query);
+}
+
+void ZoneDatabase::UpdateAllRotationKilled(uint32 rotation_id, bool bKilled)
+{
+	std::string query = StringFormat("UPDATE `rotation_entries` SET killed = %i WHERE `rotation_id` = %i", rotation_id);
+	QueryDatabase(query);
 }
 
 void ZoneDatabase::UpdateRespawnTime(uint32 spawn2_id, uint32 time_left)

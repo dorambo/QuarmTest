@@ -16,6 +16,8 @@ class SpawnGroupList;
 class Trap;
 struct CharacterEventLog_Struct;
 struct Door;
+struct RaidRotation_Struct;
+struct RotationEntry_Struct;
 struct ExtendedProfile_Struct;
 struct NPCType;
 struct PlayerCorpse_Struct;
@@ -221,8 +223,9 @@ public:
 	bool ResetStartingItems(Client* c, uint32 si_race, uint32 si_class, uint32 si_deity, uint32 si_current_zone, char* si_name, int admin_level, int& return_zone_id);
 
 	RaidRotation_Struct		LoadZoneRotation(uint32 zoneid);
-	void		LoadZoneRotationSpawnAssociation(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list);
-
+	void LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*>& spawn2_list);
+	void EndCurrentRotation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list);
+	void ProcessUpdateRotationSpawns(uint32 time_remaining, LinkedList<Spawn2*> &spawn2_list, std::map<uint32, RotationEntry_Struct>& in_rotation_entries);
 	/* Character Data Loaders  */
 	bool	LoadCharacterFactionValues(uint32 character_id, faction_map & val_list);
 	bool	LoadCharacterSpellBook(uint32 character_id, PlayerProfile_Struct* pp);
@@ -326,6 +329,8 @@ public:
 	bool		LoadSpawnGroups(const char* zone_name, SpawnGroupList* spawn_group_list);
 	bool		LoadSpawnGroupsByID(int spawngroupid, SpawnGroupList* spawn_group_list);
 	bool		PopulateZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list);
+	void		UpdateRotationKilled(uint32 spawn2_id, bool bKilled);
+	void		UpdateAllRotationKilled(uint32 rotation_id, bool bKilled);
 	bool		PopulateZoneSpawnListClose(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list, const glm::vec4& client_position, uint32 repop_distance);
 	bool		PopulateRandomZoneSpawnList(uint32 zoneid, LinkedList<Spawn2*> &spawn2_list);
 	bool		CreateSpawn2(Client *c, uint32 spawngroup, const char* zone, const glm::vec4& position, uint32 respawn, uint32 variance, uint16 condition, int16 cond_value);

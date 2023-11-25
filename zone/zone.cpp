@@ -1291,6 +1291,18 @@ bool Zone::Process() {
 		this->ChangeWeather();
 	}
 
+	if (RotationRespawns_Timer->Check())
+	{
+		if (zone && zone->raid_rotations.id != 0)
+		{
+			database.EndCurrentRotation(zone->raid_rotations, spawn2_list);
+			if (zone->raid_rotations.remaining_rotation_time > 0)
+			{
+				SetRaidRotationTimer(zone->raid_rotations.remaining_rotation_time);
+			}
+		}
+	}
+
 	if (EndQuake_Timer->Check())
 	{
 		uint32 cur_time = Timer::GetTimeSeconds();
@@ -1332,6 +1344,12 @@ bool Zone::Process() {
 	mMovementManager->Process();
 
 	return true;
+}
+
+void Zone::SetRaidRotationTimer(unsigned int nSeconds)
+{
+	if(RotationRespawns_Timer)	
+		RotationRespawns_Timer->Start(nSeconds * 1000);
 }
 
 void Zone::ChangeWeather()
