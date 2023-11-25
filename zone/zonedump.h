@@ -203,14 +203,17 @@ struct RaidRotation_Struct
 	char rotation_name[256];
 	uint32 time_per_rotation;
 	uint32 time_per_tryout;
+	uint64 rotation_start_time;
 };
 
 struct RaidRotationGuild_Struct
 {
 	uint32 rotation_id; // raidrotation_struct
 	uint32 guild_id; // from guilds.h
-	uint32 time_per_rotation; // time for each rotation to remain spawned
-	uint32 time_per_tryout; // time before we consider a raid rotation failed.
+	uint32 position; // position in list.
+	uint32 state;
+	uint32 last_tryout_date; // time before we consider a raid rotation failed.
+	uint32 last_rotation_date; // time for each rotation to remain spawned
 };
 
 struct RotationEntry_Struct

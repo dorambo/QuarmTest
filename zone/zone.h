@@ -237,6 +237,9 @@ public:
 	std::vector<GridRepository::Grid> grids;
 	std::vector<GridEntriesRepository::GridEntries> grid_entries;
 
+	std::vector<RaidRotation_Struct> raid_rotations;
+	std::vector<RaidRotationGuild_Struct> raid_rotation_entries;
+
 	time_t	weather_timer;
 	uint8	weather_intensity;
 	uint8	zone_weather;

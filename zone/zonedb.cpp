@@ -3947,6 +3947,103 @@ bool ZoneDatabase::ResetStartingItems(Client* c, uint32 si_race, uint32 si_class
 	return true;
 }
 
+RaidRotation_Struct ZoneDatabase::LoadZoneRotation(uint32 zoneid) {
+
+	RaidRotation_Struct rotations;
+	memset(&rotations, 0, sizeof(rotations));
+
+	std::string query = StringFormat("SELECT `id`, `name`, `time_per_rotation`, `time_per_tryout`, `rotation_start_time` FROM rotation WHERE `zoneid` = %i", zoneid);
+	auto results = QueryDatabase(query);
+	if (!results.Success()) {
+		return rotations;
+	}
+
+	if (results.RowCount() != 1)
+		return rotations;
+
+	auto& row = results.begin();
+
+	rotations.id = atoi(row[0]);
+	strncpy(rotations.rotation_name, row[1], 256);
+	rotations.time_per_rotation = atoi(row[2]);
+	rotations.time_per_tryout = atoi(row[3]);
+	rotations.rotation_start_time = atoll(row[4]);
+
+	return rotations;
+}
+
+void ZoneDatabase::LoadZoneRotationSpawnAssociation(RaidRotation_Struct in_rotation, LinkedList<Spawn2*> &spawn2_list) {
+
+	std::string query = StringFormat("SELECT `spawn2_id`, `killed` FROM rotation_entries WHERE `rotation_id` = %i", in_rotation.id);
+	auto results = QueryDatabase(query);
+	if (!results.Success()) {
+		return;
+	}
+
+	std::map<uint32, RotationEntry_Struct> spawn_to_rotation_map;
+
+	for (auto row = results.begin(); row != results.end(); ++row) {
+		RotationEntry_Struct rotation_entry;
+		rotation_entry.rotation_id = in_rotation.id;
+		rotation_entry.spawn2_id = atoi(row[0]);
+		rotation_entry.killed = atoi(row[1]);
+		spawn_to_rotation_map.emplace(rotation_entry.spawn2_id, rotation_entry);
+	}
+
+	std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
+
+	RaidRotationGuild_Struct first_position;
+	memset(&first_position, 0, sizeof(RaidRotationGuild_Struct));
+
+	//all but 3 - 3 is the magic number for try
+	std::string query2 = StringFormat("SELECT `guild_id`, `position`, `state`, `last_tryout_date`, `last_rotation_start_date` FROM rotation_guild_status WHERE `rotation_id` = %i AND state IN (1,2,3)", in_rotation.id);
+	auto results2 = QueryDatabase(query2);
+	if (!results2.Success()) {
+		return;
+	}
+
+	for (auto row2 = results2.begin(); row2 != results.end(); ++row2) {
+		RaidRotationGuild_Struct rotation_guild;
+		rotation_guild.rotation_id = in_rotation.id;
+		rotation_guild.guild_id = atoi(row2[0]);
+		rotation_guild.position = atoi(row2[1]);
+		rotation_guild.state = atoi(row2[2]);
+		rotation_guild.last_tryout_date = atoi(row2[3]);
+		rotation_guild.last_rotation_date = atoi(row2[4]);
+		spawn_to_rotation_map.emplace(rotation_guild.guild_id, rotation_guild);
+
+		if (rotation_guild.position == 1)
+			first_position = rotation_guild;
+	}
+
+	uint32 eligible_guild_count = rotation_guild_map.size();
+
+	LinkedListIterator<Spawn2*> iterator(spawn2_list);
+
+	uint32 curTime = Timer::GetTimeSeconds();
+	uint32 time_per_guild = in_rotation.time_per_rotation / eligible_guild_count;
+	uint32 current_start_time = in_rotation.rotation_start_time;
+	if (time_per_guild < /*RuleI(Quarm, AutomatedRotationMinimumRaidTime)*/ 86400)
+		time_per_guild = /*RuleI(Quarm, AutomatedRotationMinimumRaidTime)*/86400;
+
+	uint32 time_left = 0; // pick off here
+
+	iterator.Reset();
+	while (iterator.MoreElements())
+	{
+		Spawn2* cur = iterator.GetData();
+		if (cur)
+		{
+			auto spawnItr = spawn_to_rotation_map.find(cur->GetID());
+			if (spawnItr != spawn_to_rotation_map.end())
+			{
+				cur->ChangeRaidRotationSpawnStatus(spawnItr->second.killed, time_left);
+			}
+		}
+		iterator.Advance();
+	}
+}
+
 int16 ZoneDatabase::GetTimerFromSkill(EQ::skills::SkillType skillid)
 {
 	uint32 timer = INVALID_INDEX;
