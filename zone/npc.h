@@ -435,6 +435,7 @@ public:
 	uint8 GetBaseTexture() const { return base_texture; }
 	bool IgnoreDespawn() { return ignore_despawn; }
 	bool HasEngageNotice() { return engage_notice;  }
+	bool IsRaidTryoutBoss() { return raid_tryout_boss; }
 
 	bool HasRoambox() { return roambox_distance; }
 	uint32 shop_count;	// Number of times a player has bought or sold an item to/from a merchant.
@@ -579,6 +580,7 @@ protected:
 	QGlobalCache *qGlobals;
 
 	bool raid_target;
+	bool raid_tryout_boss;
 	bool hasZeroPrioritySpells;
 	float ignore_distance;
 	uint8 base_texture;

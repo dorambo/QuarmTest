@@ -382,6 +382,7 @@ NPC::NPC(const NPCType* d, Spawn2* in_respawn, const glm::vec4& position, int if
 	InitializeBuffSlots();
 	CalcBonuses();
 	raid_target = d->raid_target;
+	raid_tryout_boss = d->raid_tryout_boss;
 	ignore_distance = d->ignore_distance;
 	base_texture = d->texture;
 	base_size = d->size;

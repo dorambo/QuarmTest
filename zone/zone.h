@@ -239,6 +239,7 @@ public:
 	std::vector<GridEntriesRepository::GridEntries> grid_entries;
 
 	RaidRotation_Struct raid_rotations;
+	std::map<uint32, RaidRotationGuild_Struct> rotation_guilds;
 	RaidRotationGuild_Struct current_rotation_guild;
 
 	time_t	weather_timer;

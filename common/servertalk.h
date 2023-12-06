@@ -171,6 +171,7 @@
 #define ServerOP_ReloadLogs 0x4010
 #define ServerOP_QuakeImminent 0x4011
 #define ServerOP_QuakeRequest 0x4012
+#define ServerOP_RotationStatusChanged 0x4013
 
 /* Query Server OP Codes */
 #define ServerOP_QSPlayerLogItemDeletes				0x5013
@@ -1176,6 +1177,10 @@ struct ServerEarthquakeImminent_Struct {
 	uint32	next_start_timestamp; // Time the last quake began, in seconds. UNIX Timestamp. QuakeType enforcement is supposed to cease 84600 seconds following this time. Raid mobs are supposed to respawn 86400 seconds after this time. Actual type will be unknown and stored in memory.
 	
 	QuakeType quake_type; // Player-imposed ruleset with quake. uint8_t enum
+};
+
+struct ServerRotationChange_Struct {
+	uint32 zone_id; // only goes to zoneid, info is immmediately reloaded & mobs are kept in-place
 };
 
 #pragma pack()

@@ -1872,6 +1872,17 @@ void WorldServer::Process() {
 			break;
 		}
 
+		case ServerOP_RotationStatusChanged:
+		{
+			if (zone)
+			{
+				ServerRotationChange_Struct* srcs = (ServerRotationChange_Struct*)pack->pBuffer;
+
+				database.LoadZoneRotation(zone->GetZoneID(), true);
+			}
+			break;
+		}
+
 		default: {
 			std::cout << " Unknown ZSopcode:" << (int)pack->opcode;
 			std::cout << " size:" << pack->size << std::endl;

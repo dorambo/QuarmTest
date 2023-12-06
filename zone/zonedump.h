@@ -130,6 +130,7 @@ struct NPCType
 	bool	engage_notice;
 	int8	stuck_behavior;
 	int8	flymode;
+	bool	raid_tryout_boss;
 };
 
 struct PlayerCorpse_Struct {

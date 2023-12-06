@@ -833,6 +833,8 @@ Zone::Zone(uint32 in_zoneid, const char* in_short_name)
 	lootvar = 0;
 
 	memset(&last_quake_struct, 0, sizeof(ServerEarthquakeImminent_Struct));
+	memset(&raid_rotations, 0, sizeof(RaidRotation_Struct));
+	memset(&current_rotation_guild, 0, sizeof(RaidRotationGuild_Struct));
 
 	short_name = strcpy(new char[strlen(in_short_name)+1], in_short_name);
 	std::string tmp = short_name;
@@ -1295,10 +1297,9 @@ bool Zone::Process() {
 	{
 		if (zone && zone->raid_rotations.id != 0)
 		{
-			database.EndCurrentRotation(zone->raid_rotations, spawn2_list);
-			if (zone->raid_rotations.remaining_rotation_time > 0)
+			if (zone->raid_rotations.remaining_rotation_time < Timer::GetTimeSeconds() && zone->raid_rotations.remaining_rotation_time != 0)
 			{
-				SetRaidRotationTimer(zone->raid_rotations.remaining_rotation_time);
+				database.EndCurrentRotationSlot(zone->raid_rotations, spawn2_list);
 			}
 		}
 	}

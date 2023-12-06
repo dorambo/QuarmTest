@@ -1693,6 +1693,7 @@ NPCType* ZoneDatabase::GrabNPCType(uint32 id)
 		tmp_npctype->engage_notice			= n.engage_notice == 1 ? true : false;
 		tmp_npctype->stuck_behavior			= n.stuck_behavior;
 		tmp_npctype->flymode				= n.flymode;
+		tmp_npctype->raid_target			= n.raid_target == 0 ? false : true;
 		if (tmp_npctype->flymode < 0 || tmp_npctype->flymode > 3)
 			tmp_npctype->flymode = EQ::constants::GravityBehavior::Water;
 
@@ -3972,8 +3973,11 @@ RaidRotation_Struct ZoneDatabase::LoadZoneRotation(uint32 zoneid) {
 	return rotations;
 }
 
-void ZoneDatabase::EndCurrentRotation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list)
+void ZoneDatabase::EndCurrentRotationSlot(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list)
 {
+
+	if (!zone)
+		return;
 
 	std::string query = StringFormat("SELECT `spawn2_id`, `killed` FROM rotation_entries WHERE `rotation_id` = %i", in_rotation.id);
 	auto results = QueryDatabase(query);
@@ -4010,61 +4014,13 @@ void ZoneDatabase::EndCurrentRotation(RaidRotation_Struct& in_rotation, LinkedLi
 		iterator.Advance();
 	}
 
-
-	//all but 3 - 3 is the magic number for try, 4 is try as well
-	std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
-	std::string query2 = StringFormat("SELECT `guild_id`, `position`, `state`, `last_tryout_date`, `last_rotation_start_date` FROM rotation_guild_status WHERE `rotation_id` = %i AND state IN (1,2,3) ORDER BY `position` ASC", in_rotation.id);
-	auto results2 = QueryDatabase(query2);
-	if (!results2.Success()) {
-		return;
+	if (bMobAlive)
+	{
+		SetGuildRotationStatus(in_rotation.id, zone->current_rotation_guild.guild_id, 2);
 	}
-
-	bool bFoundFirstPending = false;
-
-	for (auto row2 = results2.begin(); row2 != results2.end(); ++row2) {
-		RaidRotationGuild_Struct rotation_guild;
-		rotation_guild.rotation_id = in_rotation.id;
-		rotation_guild.guild_id = atoi(row2[0]);
-		rotation_guild.position = atoi(row2[1]);
-		rotation_guild.state = atoi(row2[2]);
-		rotation_guild.last_tryout_date = atoi(row2[3]);
-		rotation_guild.last_rotation_date = atoi(row2[4]);
-		rotation_guild_map.emplace(rotation_guild.guild_id, rotation_guild);
-
-		if (rotation_guild.state == 1 && !bFoundFirstPending)
-		{
-			if (zone)
-				zone->current_rotation_guild = rotation_guild;
-			bFoundFirstPending = true;
-		}
-	}
-
-	auto query = StringFormat("UPDATE rotation SET rotation_start_time = %i WHERE id = %i", Timer::GetTimeSeconds(), in_rotation.id);
-	auto results = QueryDatabase(query);
-	if (!results.Success()) {
-		return;
-	}
-
-	 query = StringFormat("SELECT `spawn2_id`, `killed` FROM rotation_entries WHERE `rotation_id` = %i", in_rotation.id);
-	results = QueryDatabase(query);
-	if (!results.Success()) {
-		return;
-	}
-	uint32 state = 0;
-	std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
-
-	for (auto row = results.begin(); row != results.end(); ++row) {
-		uint32 killed = atoi(row[1]);
-
-		if (!killed)
-		{
-			std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
-
-			RaidRotationGuild_Struct first_position;
-			memset(&first_position, 0, sizeof(RaidRotationGuild_Struct));
-		}
-
-		spawn_to_rotation_map.emplace(rotation_entry.spawn2_id, rotation_entry);
+	else
+	{
+		SetGuildRotationStatus(in_rotation.id, zone->current_rotation_guild.guild_id, 0);
 	}
 
 	UpdateAllRotationKilled(in_rotation.id, false);
@@ -4076,10 +4032,61 @@ void ZoneDatabase::EndCurrentRotation(RaidRotation_Struct& in_rotation, LinkedLi
 	}
 }
 
-void ZoneDatabase::LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list) {
+void ZoneDatabase::GenerateNewRotationCycle(uint32 rotation_id)
+{
+	//all but 3 - 3 is the magic number for try, 4 is try as well
+	std::string query2 = StringFormat("SELECT `guild_id`, `position`, `state`, `last_tryout_date`, `last_rotation_start_date` FROM rotation_guild_status WHERE `rotation_id` = %i ORDER BY `position` ASC", rotation_id);
+	auto results2 = QueryDatabase(query2);
+	if (!results2.Success()) {
+		return;
+	}
+
+	std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
+	std::vector<uint32> rotation_guild_ids;
+	for (auto row2 = results2.begin(); row2 != results2.end(); ++row2) {
+		RaidRotationGuild_Struct rotation_guild;
+		rotation_guild.rotation_id = rotation_id;
+		rotation_guild.guild_id = atoi(row2[0]);
+		rotation_guild.position = atoi(row2[1]);
+		rotation_guild.state = atoi(row2[2]);
+		rotation_guild.last_tryout_date = atoi(row2[3]);
+		rotation_guild.last_rotation_date = atoi(row2[4]);
+		rotation_guild_map.emplace(rotation_guild.guild_id, rotation_guild);
+		if (rotation_guild.state == 0 || rotation_guild.state == 1 || rotation_guild.state == 3) //success, tryout success, excludes failed states
+		{
+			rotation_guild_ids.push_back(rotation_guild.guild_id);
+		}
+	}
+
+	std::random_shuffle(rotation_guild_ids.begin(), rotation_guild_ids.end());
+	int i = 0;
+	for (auto guild_id_nbr : rotation_guild_ids)
+	{
+		std::string query = StringFormat("UPDATE `rotation_guild_status` SET `status` = 1, `position` = %i WHERE `guild_id` = %i", i, guild_id_nbr);
+		QueryDatabase(query);
+		i++;
+	}
+
+}
+
+void ZoneDatabase::SetGuildRotationStatus(uint32 rotation_id, uint32 guild_id, int nStatus)
+{
+	std::string query = StringFormat("UPDATE `rotation_guild_status` SET `status` = %i WHERE `rotation_id` = %i AND `guild_id` = %i", nStatus, rotation_id, guild_id);
+	QueryDatabase(query);
+}
+
+void ZoneDatabase::UpdateOrAddRotationGuild(uint32 rotation_id, uint32 guild_id, int nStatus)
+{
+	std::string query = StringFormat("REPLACE INTO `rotation_guild_status` (`rotation_id`, `guild_id`, `position`, `state`) VALUES (%i, %i, %i, %i)", rotation_id, guild_id, 0, nStatus);
+	QueryDatabase(query);
+}
+
+void ZoneDatabase::LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list, bool from_update) {
 	if (in_rotation.id == 0)
 		return;
 
+	if (!zone)
+		return;
 
 	std::string query = StringFormat("SELECT `spawn2_id`, `killed` FROM rotation_entries WHERE `rotation_id` = %i", in_rotation.id);
 	auto results = QueryDatabase(query);
@@ -4099,17 +4106,16 @@ void ZoneDatabase::LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rota
 
 	std::map<uint32, RaidRotationGuild_Struct> rotation_guild_map;
 
-	RaidRotationGuild_Struct first_position;
-	memset(&first_position, 0, sizeof(RaidRotationGuild_Struct));
-
+	memset(&zone->current_rotation_guild, 0, sizeof(RaidRotationGuild_Struct));
+	zone->rotation_guilds.clear();
 	//all but 3 - 3 is the magic number for try, 4 is try as well
-	std::string query2 = StringFormat("SELECT `guild_id`, `position`, `state`, `last_tryout_date`, `last_rotation_start_date` FROM rotation_guild_status WHERE `rotation_id` = %i AND state IN (1,2,3) ORDER BY `position` ASC", in_rotation.id);
+	std::string query2 = StringFormat("SELECT `guild_id`, `position`, `state`, `last_tryout_date`, `last_rotation_start_date` FROM rotation_guild_status WHERE `rotation_id` = %i", in_rotation.id);
 	auto results2 = QueryDatabase(query2);
 	if (!results2.Success()) {
 		return;
 	}
 
-	bool bFoundFirstPending = false;
+
 
 	for (auto row2 = results2.begin(); row2 != results2.end(); ++row2) {
 		RaidRotationGuild_Struct rotation_guild;
@@ -4121,31 +4127,39 @@ void ZoneDatabase::LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rota
 		rotation_guild.last_rotation_date = atoi(row2[4]);
 		rotation_guild_map.emplace(rotation_guild.guild_id, rotation_guild);
 
-		if (rotation_guild.state == 1 && !bFoundFirstPending)
+		if (rotation_guild.state == 1)
 		{
-			if(zone)
+			if (zone->current_rotation_guild.guild_id == 0)
+			{
 				zone->current_rotation_guild = rotation_guild;
-			bFoundFirstPending = true;
+			}
 		}
+		if (zone)
+			zone->rotation_guilds.emplace(rotation_guild.position, rotation_guild);
 	}
 
 	uint32 eligible_guild_count = rotation_guild_map.size();
 
 	uint32 cur_time = Timer::GetTimeSeconds();
 	uint32 time_per_guild = eligible_guild_count == 0 ? 0 : in_rotation.time_per_rotation / eligible_guild_count;
-	uint32 last_rotation_start_time = in_rotation.rotation_start_time;
+	uint32 rotation_start_time = in_rotation.rotation_start_time;
 	if (time_per_guild < RuleI(Quarm, AutomatedRotationMinimumRaidTime))
 		time_per_guild = RuleI(Quarm, AutomatedRotationMinimumRaidTime);
+	uint32 current_rotation_start_time = rotation_start_time + (zone->current_rotation_guild.position * time_per_guild);
+	uint32 current_rotation_end_time = current_rotation_start_time + time_per_guild;
 
-	uint32 rotation_end_time = last_rotation_start_time + time_per_guild;
 	uint32 time_remaining_in_rotation = 1;
 
-	if (rotation_end_time < cur_time)
-		time_remaining_in_rotation = rotation_end_time - last_rotation_start_time;
+	if (current_rotation_end_time < cur_time)
+		time_remaining_in_rotation = current_rotation_end_time - current_rotation_start_time;
 
 	in_rotation.remaining_rotation_time = time_remaining_in_rotation;
 
-	ProcessUpdateRotationSpawns(time_remaining_in_rotation, spawn2_list, spawn_to_rotation_map);
+	//Update the status ONLY on current rotation ending.
+	if (!from_update)
+	{
+		ProcessUpdateRotationSpawns(time_remaining_in_rotation, spawn2_list, spawn_to_rotation_map);
+	}
 }
 
 void ZoneDatabase::ProcessUpdateRotationSpawns(uint32 time_remaining, LinkedList<Spawn2*> &spawn2_list, std::map<uint32, RotationEntry_Struct>& in_rotation_entries)

@@ -223,8 +223,11 @@ public:
 	bool ResetStartingItems(Client* c, uint32 si_race, uint32 si_class, uint32 si_deity, uint32 si_current_zone, char* si_name, int admin_level, int& return_zone_id);
 
 	RaidRotation_Struct		LoadZoneRotation(uint32 zoneid);
-	void LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*>& spawn2_list);
-	void EndCurrentRotation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list);
+	void GenerateNewRotationCycle(uint32 rotation_id);
+	void SetGuildRotationStatus(uint32 rotation_id, uint32 guild_id, int nStatus);
+	void UpdateOrAddRotationGuild(uint32 rotation_id, uint32 guild_id, int nStatus);
+	void LoadZoneRotationSpawnAssociation(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*>& spawn2_list, bool from_update = false);
+	void EndCurrentRotationSlot(RaidRotation_Struct& in_rotation, LinkedList<Spawn2*> &spawn2_list);
 	void ProcessUpdateRotationSpawns(uint32 time_remaining, LinkedList<Spawn2*> &spawn2_list, std::map<uint32, RotationEntry_Struct>& in_rotation_entries);
 	/* Character Data Loaders  */
 	bool	LoadCharacterFactionValues(uint32 character_id, faction_map & val_list);
