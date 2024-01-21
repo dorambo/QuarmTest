@@ -209,7 +209,7 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 	}
 
 	uint16 user_skill = GetSkill(spec->tradeskill);
-	float chance = 0.0;
+	float chance = 0.50;
 	std::vector< std::pair<uint32,uint8> >::iterator itr;
 
 	// Calculate success chance
@@ -221,15 +221,15 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 	// so this is not what Sony uses, but it outputs the desired rates using trivials instead of difficulties
 	if (spec->trivial >= 68)
 	{
-		chance = user_skill - 0.75 * spec->trivial + 51.5;
+		chance = user_skill - 0.75 * spec->trivial + 5;
 	}
 	else
 	{
-		chance = user_skill - spec->trivial + 66;
+		chance = user_skill - spec->trivial + 10;
 	}
 
 	if (chance < 0) {
-		chance = 0;
+		chance = 50;
 	}
 
 	bool isTrivialCombine = static_cast<int>(GetRawSkill(spec->tradeskill)) - static_cast<int>(spec->trivial) >= 0 ? true : false;
